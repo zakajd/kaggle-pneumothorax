@@ -1,7 +1,4 @@
-python>=3.7.1
 scikit-image
-pytorch>=1.1
 pydicom
 pandas
-git+https://github.com/bonlime/pytorch-tools.git@master
-git+https://github.com/mapillary/inplace_abn.git@v1.0.4
+autopep8
