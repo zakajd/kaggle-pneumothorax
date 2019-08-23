@@ -73,6 +73,10 @@ def dicom_to_dict(dicom_data, file_path, rles_df, encoded_pixels=True):
         
     return data
 
+def rle_to_string(runs):
+    """Array to str"""
+    return ' '.join(str(x) for x in runs)
+    
 def rle_decode(rle_str, shape, fill_value=1, dtype=int, relative=False):
     
     """
@@ -108,7 +112,7 @@ def bounding_box(img):
 
     return rmin, rmax, cmin, cmax
 
-def plot_with_mask_and_bbox(file_path, mask_encoded_list, figsize=(20,10)):    
+def plot_with_mask_and_bbox(file_path, mask_encoded_list, figsize=(20,10), relative=True):    
     """Plot Chest Xray image with mask(annotation or label) and without mask.
 
     Args:
@@ -127,7 +131,7 @@ def plot_with_mask_and_bbox(file_path, mask_encoded_list, figsize=(20,10)):
     adapteq_pixel_array = exposure.equalize_adapthist(pixel_array, clip_limit=0.03)
     
     # use the masking function to decode RLE
-    mask_decoded_list = [rle_decode(mask_encoded, (1024, 1024), relative=True).T for mask_encoded in mask_encoded_list]
+    mask_decoded_list = [rle_decode(mask_encoded, (1024, 1024), relative=relative) for mask_encoded in mask_encoded_list]
     
     fig, ax = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=(20,10))
     

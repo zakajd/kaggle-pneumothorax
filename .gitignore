@@ -102,4 +102,5 @@ venv.bak/
 
 # mypy
 .mypy_cache/
-data/
+data/dicom-images-test
+data/dicom-images-train
