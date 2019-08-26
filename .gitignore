@@ -102,5 +102,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+data/
+.vscode/
 data/dicom-images-test
 data/dicom-images-train
