@@ -22,7 +22,8 @@ def get_parser():
     add_arg('--debug', dest='debug', default=False, action='store_true', help="Make short epochs")
     add_arg("--opt_level", default="O0", type=str, help="Optimization level for apex")
     add_arg("--resume", default="", type=str, help="Path to checkpoint to start from")
-    add_arg('--')
+    add_arg('--fold', default=0, type=int, help='Number of fold to use for training')
+    add_arg('--pos_weight', default=0.5, type=float, help="Proportion of positive examples sampled from dataset")
 
     # Model
     add_arg("--segm_arch", default="unet", type=str, help="Segmentation architecture to use")

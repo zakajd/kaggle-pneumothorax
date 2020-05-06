@@ -108,5 +108,5 @@ data/dicom-images-test
 data/dicom-images-train
 
 # Project specific
-data/
-logs/
+/data/
+/logs

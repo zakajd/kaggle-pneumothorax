@@ -177,27 +177,21 @@ def main(hparams):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="SpaceNet6",
+        description="SIIM challenge",
     )
 
     parser.add_argument(
-        "--path", type=str, help="Path to folder with model config and checkpoint")
+        "--config_path", type=str, help="Path to folder with model config and checkpoint")
     parser.add_argument(
         "--output_path", type=str, default="data/processed", help="Path to save masks")
     parser.add_argument(
         "--predict_val", action="store_true", help="Flag to make prediction for validation")
-    parser.add_argument(
-        "--evaluate_val", action="store_true", help="Flag to compute SpaceNet6 metric for validation")  
     parser.add_argument(
         "--predict_test", action="store_true", help="Flag to make prediction for test")   
     parser.add_argument(
         "--create_solution", action="store_true", help="Flag to transform masks into CSV")  
     parser.add_argument(
         "--debug", action="store_true", help="Debug mode only inferences 5 images") 
-    # parser.add_argument(
-    #     "--threshold", type=float, default=0.5, help="") 
-    parser.add_argument(
-        "--tta", action="store_true", help="Use Test Time Augmentation") 
 
     hparams = parser.parse_args()
     print(f"Parameters used for inference: {hparams}")
