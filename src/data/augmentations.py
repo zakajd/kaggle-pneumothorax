@@ -15,7 +15,7 @@ def get_aug(aug_type="val", size=512):
     """
 
     NORM_TO_TENSOR = albu.Compose([
-        albu.Normalize(mean=MEAN, std=STD, max_pixel_value=1.), 
+        albu.Normalize(mean=MEAN, std=STD), 
         albu.pytorch.ToTensorV2(),
     ])
 

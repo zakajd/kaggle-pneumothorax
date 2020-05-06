@@ -146,11 +146,12 @@ class PneumothoraxDataset(torch.utils.data.Dataset):
         """
         image_path = self.images[index]
         mask_path = self.masks[index]
-        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        image = cv2.imread(image_path) # , cv2.IMREAD_GRAYSCALE
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
         # Greyscale -> PseudoRGB
-        image = np.stack([image, image, image], axis=2)
+        # image = np.stack([image, image, image], axis=2)
+        # np.repeat()
 
         # Apply Albumentation transform
         trfm = self.transform(image=image, mask=mask)
@@ -182,9 +183,9 @@ class PneumothoraxTestDataset(torch.utils.data.Dataset):
             tuple: (image, filename)
         """
         image_path = self.root + "/test_images/" + self.images[index]
-        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        image = cv2.imread(image_path) #, cv2.IMREAD_GRAYSCALE
         # Greyscale -> PseudoRGB
-        image = np.stack([image, image, image], axis=2)
+        # image = np.stack([image, image, image], axis=2)
         image = self.transform(image=image)["image"]
         return image
 
