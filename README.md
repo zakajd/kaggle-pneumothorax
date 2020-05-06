@@ -1,5 +1,17 @@
 # kaggle-pneumothorax
-My solution for Kaggle Pneumothorax challenge
+Solution of Kaggle Pnumothorax challenge
+
+To reproduce the solution, run following commands:
+```
+make load
+```
+
+1. Download stage2 and stage1 datasets into data/raw folder
+2. Filter csv files to delete duplicates
+2. Convert all images into PNG files and all rle into binary masks
+
+
+
 
 Ideas:
 - DICOM images have 10 bits/pixel, compressing it to 8 bits can reduse performance
