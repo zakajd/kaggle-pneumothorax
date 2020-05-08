@@ -6,14 +6,14 @@ import numpy as np
 import pandas as pd
 import albumentations as albu
 from torch.utils.data import Dataset, DataLoader, random_split
-
+from torch.utils.data.sampler import WeightedRandomSampler
 
 from src.data.augmentations import get_aug
 from src.utils import ToCudaLoader
 
 
 def get_dataloaders(
-    root='data/raw',
+    root='data/interim',
     augmentation='light', 
     fold=0,
     pos_weight=0.5,
@@ -55,11 +55,17 @@ def get_dataloaders(
     )
 
     # Fix class inbalance
-    train_sampler = ImbalancedBinarySampler(train_dataset, pos_weight=pos_weight)
+    # Distribution of classes in the dataset 
+    label_to_weight = {
+        0: 1 - pos_weight,
+        1: pos_weight
+    }
+    weights = [label_to_weight[k] for k in train_dataset.classes]
+
     train_loader = DataLoader(
         train_dataset, 
         batch_size=batch_size, 
-        sampler=train_sampler,
+        sampler=WeightedRandomSampler(weights, num_samples=len(train_dataset), replacement=True),
         num_workers=workers, 
         drop_last=True, 
         pin_memory=True)
@@ -79,7 +85,7 @@ def get_dataloaders(
 
 
 def get_test_dataloader(
-    root="data/raw",
+    root="data/interim",
     batch_size=8, 
     size=768,
     workers=6,
@@ -190,32 +196,32 @@ class PneumothoraxTestDataset(torch.utils.data.Dataset):
         return image
 
 
-class ImbalancedBinarySampler(torch.utils.data.sampler.Sampler):
-    """Samples elements randomly from a given list of indices for imbalanced dataset
-    Args:
-        dataset: Dataset with unbalanced binary classes
-        indices (list, optional): a list of indices
-        # num_samples (int, optional): Number of samples to draw. Default: len(dataset)
-        pos_weight (float): Proportion of positive examples. Default: 0.5 - balanced sampling
-    """
-    def __init__(self, dataset, pos_weight=0.5):
+# class ImbalancedBinarySampler(torch.utils.data.sampler.Sampler):
+#     """Samples elements randomly from a given list of indices for imbalanced dataset
+#     Args:
+#         dataset: Dataset with unbalanced binary classes
+#         indices (list, optional): a list of indices
+#         # num_samples (int, optional): Number of samples to draw. Default: len(dataset)
+#         pos_weight (float): Proportion of positive examples. Default: 0.5 - balanced sampling
+#     """
+#     def __init__(self, dataset, pos_weight=0.5):
 
-        self.indices = list(range(len(dataset)))
-        self.num_samples = len(dataset)
+#         self.indices = list(range(len(dataset)))
+#         self.num_samples = len(dataset)
             
-        # distribution of classes in the dataset 
-        label_to_weight = {
-            0: 1 - pos_weight,
-            1: pos_weight
-        }
+#         # distribution of classes in the dataset 
+#         label_to_weight = {
+#             0: 1 - pos_weight,
+#             1: pos_weight
+#         }
 
-        # weight for each sample
-        weights = [label_to_weight[dataset.classes[idx]] for idx in self.indices]
-        self.weights = torch.DoubleTensor(weights)
+#         # weight for each sample
+#         weights = [label_to_weight[dataset.classes[idx]] for idx in self.indices]
+#         self.weights = torch.DoubleTensor(weights)
 
-    def __iter__(self):
-        return (self.indices[i] for i in torch.multinomial(
-            self.weights, self.num_samples, replacement=True))
+#     def __iter__(self):
+#         return (self.indices[i] for i in torch.multinomial(
+#             self.weights, self.num_samples, replacement=True))
 
-    def __len__(self):
-        return self.num_samples
+#     def __len__(self):
+#         return self.num_samples
