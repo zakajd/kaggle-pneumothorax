@@ -32,9 +32,14 @@ def main():
     # Fix seeds for reprodusability
     pt.utils.misc.set_random_seed(hparams.seed) 
 
-    ## Save config
+    ## Save config and Git diff (don't know how to do it without subprocess)
     os.makedirs(hparams.outdir, exist_ok=True)
     yaml.dump(vars(hparams), open(hparams.outdir + '/config.yaml', 'w'))
+    kwargs = {"universal_newlines": True, "stdout": subprocess.PIPE}
+    with open(hparams.outdir + '/commit_hash.txt', 'w') as f:
+        f.write(subprocess.run(["git", "rev-parse", "--short", "HEAD"], **kwargs).stdout)
+    with open(hparams.outdir + '/diff.txt', 'w') as f:
+        f.write(subprocess.run(["git", "diff"], **kwargs).stdout)
 
     ## Get dataloaders
     train_loader, val_loader = get_dataloaders(
