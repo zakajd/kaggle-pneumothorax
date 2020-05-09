@@ -4,12 +4,11 @@ import time
 
 import apex
 import torch
-
+from loguru import logger
 import pytorch_tools as pt
 import pytorch_tools.fit_wrapper.callbacks as pt_clb 
 from pytorch_tools.optim import optimizer_from_name
 from pytorch_tools.fit_wrapper.callbacks import Callback as NoClb
-# from pytorch_tools.modules.weight_standartization import conv_to_ws_conv
 
 from src.models.arg_parser import parse_args
 from src.data.datasets import get_dataloaders
@@ -17,8 +16,18 @@ from src.utils import MODEL_FROM_NAME, criterion_from_list
 from src.callbacks import PredictViewer
 
 def main():
+    # Setup logger
+    config = {
+    "handlers": [ 
+        {"sink": sys.stdout, "format": "{time:[MM-DD HH:mm:ss]} - {message}"},
+        {"sink": f"{hparams.outdir}/logs.txt", "format": "{time:[MM-DD HH:mm:ss]} - {message}"},
+        ],
+    }
+    logger.configure(**config)
+
+    # Get config for this run
     hparams = parse_args()
-    print(f"Parameters used for training: {hparams}")
+    logger.info(f"Parameters used for training: {hparams}")
 
     # Fix seeds for reprodusability
     pt.utils.misc.set_random_seed(hparams.seed) 
@@ -56,7 +65,7 @@ def main():
         model.load_state_dict(checkpoint["state_dict"], strict=False)
     
     num_params = pt.utils.misc.count_parameters(model)[0]
-    print(f"Model size: {num_params / 1e6:.02f}M")  
+    logger.info(f"Model size: {num_params / 1e6:.02f}M")  
 
     ## Use AMP
     model, optimizer = apex.amp.initialize(
@@ -65,7 +74,7 @@ def main():
 
     # Get loss
     loss = criterion_from_list(hparams.criterion).cuda()
-    print("Loss for this run is: ", loss)
+    logger.info(f"Loss for this run is: {loss}")
 
     bce_loss = pt.losses.CrossEntropyLoss(mode="binary").cuda() # Used as a metric
     bce_loss.name = "BCE"
@@ -81,7 +90,7 @@ def main():
         callbacks=[
             pt_clb.Timer(),
             pt_clb.ConsoleLogger(),
-            pt_clb.FileLogger(hparams.outdir),
+            pt_clb.FileLogger(hparams.outdir, logger=logger),
             pt_clb.CheckpointSaver(hparams.outdir, save_name="model.chpn"),
             sheduler,
             PredictViewer(hparams.outdir, num_images=4)
@@ -137,4 +146,4 @@ def main():
 if __name__ == "__main__":
     start_time = time.time()
     main()
-    print(f"Finished Training. Took: {(time.time() - start_time) / 60:.02f}m")
+    logger.info(f"Finished Training. Took: {(time.time() - start_time) / 60:.02f}m")

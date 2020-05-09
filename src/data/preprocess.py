@@ -27,7 +27,7 @@ def main(hparams):
     # Read train labels and fix incorrect column name of CSV file
     df = pd.read_csv(hparams.root + '/siim/train-rle.csv', index_col=None)
     df.rename(columns={' EncodedPixels' : 'EncodedPixels'}, inplace=True)
-    print(f"Raw train images: {len(train_dcms)}, raw test images: {len(test_dcms)}, lines in DF: {len(df)}")
+    logger.info(f"Raw train images: {len(train_dcms)}, raw test images: {len(test_dcms)}, lines in DF: {len(df)}")
 
     # Used only in flag `use_clahe` is True
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
@@ -88,10 +88,10 @@ def main(hparams):
         pixels = clahe.apply(dataset.pixel_array) if hparams.use_clahe else dataset.pixel_array
         cv2.imwrite(f'{hparams.output_path}/test_images/{img_id}.png', pixels) 
 
-    print(f'Finished generating images. Skiped {skipped} images')
+    logger.info(f'Finished generating images. Skiped {skipped} images')
 
     if hparams.train_val_split:
-        print("Started train/val split")
+        logger.info("Started train/val split")
         file_names = np.array(file_names)
         classes = np.array(classes)
         skf = StratifiedKFold(n_splits=hparams.num_folds)
@@ -119,6 +119,7 @@ def main(hparams):
 
 
 if __name__ == "__main__":
+    # Parse args
     parser = argparse.ArgumentParser(description="Kaggle-Pneumothorax")
     parser.add_argument(
         "--root", type=str, default="data/raw", help="Path to all raw data as provided by organizers")
@@ -137,9 +138,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dilate_mask", action="store_true", help="Flag to make mask slightly bigger")       
 
+    # Setup logger
+    logger.add(sys.stdout, "format": "{time:[MM-DD HH:mm:ss]} - {message}")
+
     hparams = parser.parse_args(sys.argv[1:])
-    print(f"Parameters used for preprocessing: {hparams}")
+    logger.info(f"Parameters used for preprocessing: {hparams}")
 
     start_time = time.time()
     main(hparams)
-    print(f"Finished preprocessing. Took: {(time.time() - start_time) / 60:.02f}m")
+    logger.info(f"Finished preprocessing. Took: {(time.time() - start_time) / 60:.02f}m")

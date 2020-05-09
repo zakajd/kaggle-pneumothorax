@@ -2,3 +2,4 @@ scikit-image
 pydicom
 pandas
 autopep8
+loguru
