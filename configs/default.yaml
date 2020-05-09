@@ -15,6 +15,7 @@ pos_weight: 0.5
 segm_arch: unet
 backbone: resnet34
 model_params: {}
+ws: False
 
 # Training
 optim: adamw

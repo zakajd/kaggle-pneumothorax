@@ -9,12 +9,12 @@ import pytorch_tools as pt
 import pytorch_tools.fit_wrapper.callbacks as pt_clb 
 from pytorch_tools.optim import optimizer_from_name
 from pytorch_tools.fit_wrapper.callbacks import Callback as NoClb
+# from pytorch_tools.modules.weight_standartization import conv_to_ws_conv
 
 from src.models.arg_parser import parse_args
 from src.data.datasets import get_dataloaders
 from src.utils import MODEL_FROM_NAME, criterion_from_list
 from src.callbacks import PredictViewer
-
 
 def main():
     hparams = parse_args()
@@ -45,6 +45,10 @@ def main():
         model.parameters(), # Get LR from phases later
         weight_decay=hparams.weight_decay
     )
+
+    # Convert all Conv2D -> WS_Conv2d if needed
+    if hparams.ws:
+        model = pt.modules.weight_standartization.conv_to_ws_conv(model).cuda()
 
     # Load weights if needed
     if hparams.resume:
@@ -85,7 +89,7 @@ def main():
         metrics=[
             bce_loss,
             pt.metrics.JaccardScore(mode="binary").cuda(),
-            ThrJaccardScore(thr=0.5),
+            # ThrJaccardScore(thr=0.5),
         ],
     )
 

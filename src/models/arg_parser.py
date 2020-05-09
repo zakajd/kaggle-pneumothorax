@@ -15,7 +15,7 @@ def get_parser():
     # General
     add_arg("--name", type=str, help="Name of this run")
     add_arg("--seed", type=int, help="Random seed for reprodusability")
-    add_arg("--root", type=str, help="Path to raw train data")
+    add_arg("--root", type=str, help="Path to preprocessed train data")
     add_arg("--batch_size", type=int, help="Batch size")
     add_arg("--workers", type=int, help="№ of data loading workers ")
     add_arg("--augmentation", default="light", type=str,help="How hard augs are")
@@ -29,6 +29,8 @@ def get_parser():
     add_arg("--segm_arch", default="unet", type=str, help="Segmentation architecture to use")
     add_arg("--backbone", default="se_resnet50", help="Backbone architecture")
     add_arg("--model_params", type=eval, default={}, help="Additional model params as kwargs")
+    add_arg("--ws", default=False, action='store_true', help="Weight standartization")
+
 
     # Training
     add_arg("--optim", type=str, default="adamw", help="Optimizer to use (default: adamw)")
