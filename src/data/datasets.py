@@ -84,6 +84,29 @@ def get_dataloaders(
     return train_loader, val_loader
 
 
+def get_val_dataloader(
+    root="data/interim",
+    fold=0,
+    batch_size=8,
+    size=768,
+    workers=6,
+    ):
+    aug = get_aug("test", size=size)
+
+    val_dataset = PneumothoraxDataset(
+        root=root,
+        fold=fold,
+        train=False,
+        transform=aug,
+    )
+
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=workers)
+    val_loader = ToCudaLoader(val_loader)
+
+    print(f"\nUsing fold: {fold}. Validation size: {len(val_dataset)}")
+    return val_loader, val_dataset.images
+
+
 def get_test_dataloader(
     root="data/interim",
     batch_size=8, 
