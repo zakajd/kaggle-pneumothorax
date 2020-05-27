@@ -1,6 +1,8 @@
 import os
 import yaml
 import time
+import sys
+import subprocess
 
 import apex
 import torch
@@ -15,18 +17,20 @@ from src.data.datasets import get_dataloaders
 from src.utils import MODEL_FROM_NAME, criterion_from_list
 from src.callbacks import PredictViewer
 
+
 def main():
-    # Setup logger
+    hparams = parse_args()
+
+    # Get config for this run
     config = {
     "handlers": [ 
         {"sink": sys.stdout, "format": "{time:[MM-DD HH:mm:ss]} - {message}"},
         {"sink": f"{hparams.outdir}/logs.txt", "format": "{time:[MM-DD HH:mm:ss]} - {message}"},
         ],
     }
-    logger.configure(**config)
 
-    # Get config for this run
-    hparams = parse_args()
+    # Setup logger
+    logger.configure(**config)
     logger.info(f"Parameters used for training: {hparams}")
 
     # Fix seeds for reprodusability
@@ -36,8 +40,8 @@ def main():
     os.makedirs(hparams.outdir, exist_ok=True)
     yaml.dump(vars(hparams), open(hparams.outdir + '/config.yaml', 'w'))
     kwargs = {"universal_newlines": True, "stdout": subprocess.PIPE}
-    with open(hparams.outdir + '/commit_hash.txt', 'w') as f:
-        f.write(subprocess.run(["git", "rev-parse", "--short", "HEAD"], **kwargs).stdout)
+    # with open(hparams.outdir + '/commit_hash.txt', 'w') as f:
+    #     f.write(subprocess.run(["gitc", "rev-parse", "--short", "HEAD"], **kwargs).stdout)
     with open(hparams.outdir + '/diff.txt', 'w') as f:
         f.write(subprocess.run(["git", "diff"], **kwargs).stdout)
 

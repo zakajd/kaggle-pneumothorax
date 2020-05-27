@@ -114,7 +114,6 @@ class PneumothoraxDataset(torch.utils.data.Dataset):
     def __init__(
         self, 
         root="data/interim", 
-        train_val_csv_path="data/interim/train_val.csv",
         fold=0,
         train=True,
         transform=None):
@@ -127,6 +126,8 @@ class PneumothoraxDataset(torch.utils.data.Dataset):
             transform (albu.Compose): albumentation transformation for images
         """
         # Read DF, convert columns to right dtype and filter by `train` and `fold`
+        train_val_csv_path = os.path.join(root, 'train_val.csv')
+
         df = pd.read_csv(train_val_csv_path)
         df = df.astype({'Index': str, 'Class': int, 'Fold': int, 'Train': int})
         df = df.astype({'Train': bool})

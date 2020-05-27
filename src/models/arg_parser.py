@@ -16,6 +16,7 @@ def get_parser():
     add_arg("--name", type=str, help="Name of this run")
     add_arg("--seed", type=int, help="Random seed for reprodusability")
     add_arg("--root", type=str, help="Path to preprocessed train data")
+    add_arg("--output_root", type=str, help="Path to output logs/models")
     add_arg("--batch_size", type=int, help="Batch size")
     add_arg("--workers", type=int, help="№ of data loading workers ")
     add_arg("--augmentation", default="light", type=str,help="How hard augs are")
@@ -61,11 +62,11 @@ def parse_args():
     args = parser.parse_args()
 
     # If folder already exist append version number
-    outdir = os.path.join("logs/", args.name)
+    outdir = os.path.join(args.output_root, args.name, str(args.fold))
     if os.path.exists(outdir):
         version = 1
         while os.path.exists(outdir):
-            outdir = os.path.join("logs/", args.name + "_" + str(version))
+            outdir = os.path.join(args.output_root, args.name + "_" + str(version), str(args.fold))
             version += 1
 
     args.outdir = outdir
