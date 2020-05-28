@@ -13,6 +13,8 @@ import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from loguru import logger
+from sklearn.utils import shuffle
 import pytorch_tools as pt
 
 from pytorch_tools.utils.rle import rle_decode
@@ -36,6 +38,7 @@ def main(hparams):
     # Delete old images
     shutil.rmtree(hparams.output_path + '/images', ignore_errors=True)
     os.makedirs(hparams.output_path + '/images')
+
     if hparams.create_masks:
         shutil.rmtree(hparams.output_path + '/masks', ignore_errors=True)
         os.makedirs(hparams.output_path + '/masks')
@@ -48,12 +51,12 @@ def main(hparams):
         # Load image data
         pixels = clahe.apply(dataset.pixel_array) if hparams.use_clahe else dataset.pixel_array
 
-        # Save as PNG only if image_id exists in DF 
+        # Save as PNG only if image_id exists in DF
         if df[df['ImageId'] == img_id].empty:
             skipped += 1
             continue
-        
-        cv2.imwrite(f'{hparams.output_path}/images/{img_id}.png', pixels) 
+
+        cv2.imwrite(f'{hparams.output_path}/images/{img_id}.png', pixels)
 
         rle_masks = df[df['ImageId'] == img_id]["EncodedPixels"].values
         if hparams.create_masks and (rle_masks[0] != '-1'):
@@ -65,14 +68,14 @@ def main(hparams):
                 kernel_sz = int(np.sqrt(np.sum(mask)) * 0.1)
                 kernel = np.ones((kernel_sz, kernel_sz))
                 mask = cv2.dilate(mask, kernel, iterations = 1)
-            cv2.imwrite(f'{hparams.output_path}/masks/{img_id}.png', mask) 
+            cv2.imwrite(f'{hparams.output_path}/masks/{img_id}.png', mask)
             pneumothorax = True
         elif hparams.create_masks:
             # Empty mask
             mask = np.zeros(pixels.shape)
             cv2.imwrite(f'{hparams.output_path}/masks/{img_id}.png', mask)
             pneumothorax = False
-        
+
         if hparams.train_val_split:
             file_names.append(img_id)
             classes.append(int(pneumothorax))
@@ -86,7 +89,7 @@ def main(hparams):
 
         # Load image data
         pixels = clahe.apply(dataset.pixel_array) if hparams.use_clahe else dataset.pixel_array
-        cv2.imwrite(f'{hparams.output_path}/test_images/{img_id}.png', pixels) 
+        cv2.imwrite(f'{hparams.output_path}/test_images/{img_id}.png', pixels)
 
     logger.info(f'Finished generating images. Skiped {skipped} images')
 
@@ -94,9 +97,23 @@ def main(hparams):
         logger.info("Started train/val split")
         file_names = np.array(file_names)
         classes = np.array(classes)
-        skf = StratifiedKFold(n_splits=hparams.num_folds)
+
         final_splits = []
 
+        # Add test split
+        file_names, classes = shuffle(file_names, classes)
+        train_size = int(hparams.train_size * len(file_names))
+        test_size = len(file_names) - train_size
+
+        test = np.vstack((file_names[:test_size],
+                       classes[:test_size],
+                       np.array(['test'] * test_size),
+                       np.zeros(test_size))).T
+        final_splits.append(test)
+
+        # Add train/val splits
+        file_names, classes = file_names[test_size:], classes[test_size:]
+        skf = StratifiedKFold(n_splits=hparams.num_folds)
         for fold, (train_index, val_index) in enumerate(skf.split(file_names, classes)):
             files_train, files_val = file_names[train_index], file_names[val_index]
             classes_train, classes_val = classes[train_index], classes[val_index]
@@ -110,7 +127,7 @@ def main(hparams):
                             np.zeros(files_val.shape, dtype=np.uint8))).T
             final_splits.append(train)
             final_splits.append(val)
-            
+
         df_data = np.vstack(final_splits)
         # Save split into separate file for future usage
         df = pd.DataFrame(df_data, columns=['Index', 'Class', 'Fold', 'Train'])
@@ -125,8 +142,8 @@ if __name__ == "__main__":
         "--root", type=str, default="data/raw", help="Path to all raw data as provided by organizers")
     parser.add_argument(
         "--output_path", type=str, default="data/interim", help="Path to save masks, PNGs and other files")
-    # parser.add_argument(
-    #     "--train_size", type=float, default=0.8, help="Part of data used for training")
+    parser.add_argument(
+        "--train_size", type=float, default=0.8, help="Part of data used for training")
     parser.add_argument(
         "--create_masks", action="store_true", help="Flag to create masks for train images")
     parser.add_argument(
@@ -139,7 +156,7 @@ if __name__ == "__main__":
         "--dilate_mask", action="store_true", help="Flag to make mask slightly bigger")       
 
     # Setup logger
-    logger.add(sys.stdout, "format": "{time:[MM-DD HH:mm:ss]} - {message}")
+    logger.add(sys.stdout, format="{time:[MM-DD HH:mm:ss]} - {message}")
 
     hparams = parser.parse_args(sys.argv[1:])
     logger.info(f"Parameters used for preprocessing: {hparams}")

@@ -152,9 +152,9 @@ class PneumothoraxDataset(torch.utils.data.Dataset):
         train_val_csv_path = os.path.join(root, 'train_val.csv')
 
         df = pd.read_csv(train_val_csv_path)
-        df = df.astype({'Index': str, 'Class': int, 'Fold': int, 'Train': int})
+        df = df.astype({'Index': str, 'Class': int, 'Fold': str, 'Train': int})
         df = df.astype({'Train': bool})
-        df = df[(df["Train"] == train) & (df["Fold"] == fold)]
+        df = df[(df["Train"] == train) & (df["Fold"] == str(fold))]
 
         self.images = list(root + "/images/" + df["Index"] + ".png")
         self.masks = list(root + "/masks/" + df["Index"] + ".png")
