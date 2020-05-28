@@ -96,7 +96,8 @@ def main(hparams):
     # Add model parameters 
     with open(os.path.join(hparams.config_path, "config.yaml"), "r") as file:
         model_configs = yaml.load(file)
-    vars(hparams).update(model_configs)
+    model_configs.update(vars(hparams))
+    hparams = model_configs = argparse.Namespace(**model_configs)
 
     print("Loading model")
     model = MODEL_FROM_NAME[hparams.segm_arch](hparams.backbone, **hparams.model_params)

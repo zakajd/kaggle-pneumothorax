@@ -31,7 +31,8 @@ def test(hparams):
     assert os.path.exists(hparams.config_path)
     with open(os.path.join(hparams.config_path, "config.yaml"), "r") as file:
         model_configs = yaml.load(file)
-    vars(hparams).update(model_configs)
+    model_configs.update(vars(hparams))
+    hparams = model_configs = argparse.Namespace(**model_configs)
 
     pred_masks_dir = os.path.join(hparams.masks_path, "val_prediction", hparams.name)
 
