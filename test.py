@@ -7,9 +7,11 @@ import skimage.transform
 import numpy as np
 import pandas as pd
 import tqdm
+from sklearn.metrics import confusion_matrix
 
 
 from src.data.datasets import PneumothoraxDataset
+
 
 def dice(gt, pred):
     gt = np.asarray(gt).astype(np.bool)
@@ -39,21 +41,27 @@ def test(hparams):
         train=False,
     )
 
-    dices = {}
+    scores = {}
     for gt_mask_path in tqdm.tqdm(dataset.masks):
         image_name = os.path.basename(gt_mask_path)
-        gt = skimage.io.imread(gt_mask_path)
+        gt = skimage.io.imread(gt_mask_path) > 0
         pred = skimage.io.imread(os.path.join(pred_masks_dir, image_name))
         pred = skimage.transform.resize(pred, gt.shape) > 0.5
-        dices[image_name] = dice(gt, pred)
 
-    dices = pd.DataFrame.from_dict(dices, orient='index', columns=['dice'])
-    dices.loc['MEAN'] = dices.mean(axis=0)
-    print(dices.loc['MEAN'])
+        # if pred.sum() <= 1000:
+        #     pred = pred * 0
+
+        dice_val = dice(gt, pred)
+        tn, fp, fn, tp = confusion_matrix([gt.any()], [pred.any()], labels=[0, 1]).ravel()
+        scores[image_name] = [dice_val, tn, fp, fn, tp, gt.sum(), pred.sum()]
+
+    scores = pd.DataFrame.from_dict(scores, orient='index', columns=['dice', "tn", "fp", "fn", "tp", 'gt_area', 'pred_area'])
+    scores.loc['MEAN'] = scores.mean(axis=0)
+    print(scores.loc['MEAN'])
 
     output_dir = os.path.join(hparams.output_path, hparams.name)
     os.makedirs(output_dir, exist_ok=True)
-    dices.to_csv(os.path.join(output_dir, '{}_dice.csv'.format(hparams.fold)))
+    scores.to_csv(os.path.join(output_dir, '{}_scores.csv'.format(hparams.fold)))
 
 
 if __name__ == "__main__":
