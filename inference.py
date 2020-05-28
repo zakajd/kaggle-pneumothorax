@@ -123,7 +123,7 @@ def main(hparams):
         val_loader, val_files = get_val_dataloader(
             root=hparams.root,
             fold=hparams.fold,
-            size=hparams.size,
+            size=hparams.val_size,
             batch_size=hparams.batch_size,
             workers=hparams.workers
         )
