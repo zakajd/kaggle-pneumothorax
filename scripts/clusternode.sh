@@ -15,7 +15,7 @@
 #SBATCH --mem=50000
 
 #SBATCH --partition=clusternodes
-#SBATCH --constraint=[2080ti]     # [1080ti|2080ti] critical!!! 2080ti does not suit!!!
+#SBATCH --constraint=[1080ti]     # [1080ti|2080ti] critical!!! 2080ti does not suit!!!
 
 ##SBATCH --exclude=nvidia29,nvidia30,nvidia21,nvidia22,nvidia23
 ##SBATCH --nodelist=nvidia31 #,nvidia30,nvidia29,nvidia28,nvidia26,nvidia25,nvidia24,nvidia23,nvidia22
@@ -25,4 +25,6 @@
 
 echo "$@"
 
-"$@"
+bash << endl
+$@
+endl
