@@ -13,7 +13,7 @@ def get_parser():
     add_arg = parser.add_argument
 
     # General
-    add_arg("--name", type=str, help="Name of this run")
+    add_arg("--name", type=str, default=None, help="Name of this run")
     add_arg("--seed", type=int, help="Random seed for reprodusability")
     add_arg("--root", type=str, help="Path to preprocessed train data")
     add_arg("--output_path", type=str, default='data/logs', help="Path to output logs/models")
@@ -62,12 +62,12 @@ def parse_args():
     args = parser.parse_args()
 
     # If folder already exist append version number
+    if args.name is None:
+        name = os.path.basename(args.config_file)
+        name = os.path.splitext(name)[0]
+        args.name = name
     outdir = os.path.join(args.output_path, args.name, str(args.fold))
-    if os.path.exists(outdir):
-        version = 1
-        while os.path.exists(outdir):
-            outdir = os.path.join(args.output_path, args.name + "_" + str(version), str(args.fold))
-            version += 1
-
+    if args.resume != '':
+        args.resume = os.path.join(args.output_path, args.resume, str(args.fold), 'model.chpn')
     args.outdir = outdir
     return args

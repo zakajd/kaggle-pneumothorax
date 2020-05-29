@@ -97,37 +97,37 @@ def main():
         optimizer,
         criterion=loss,
         callbacks=[
+            sheduler,
             pt_clb.Timer(),
             pt_clb.ConsoleLogger(),
             pt_clb.FileLogger(hparams.outdir, logger=logger),
             pt_clb.CheckpointSaver(hparams.outdir, save_name="model.chpn"),
-            sheduler,
             PredictViewer(hparams.outdir, num_images=4)
         ],
         metrics=[
             bce_loss,
             pt.metrics.JaccardScore(mode="binary").cuda(),
+            pt.metrics.DiceScore(mode="binary").cuda()
             # ThrJaccardScore(thr=0.5),
         ],
     )
 
     if hparams.decoder_warmup_epochs > 0:
         # Freeze encoder
+        frozen_params = []
         for p in model.encoder.parameters():
-            p.requires_grad = False
+            if p.requires_grad is True:
+                frozen_params.append(p)
+                p.requires_grad = False
 
         runner.fit(
             train_loader,
             val_loader=val_loader,
-
             epochs=hparams.decoder_warmup_epochs,
-            steps_per_epoch=10 if hparams.debug else None,
-            val_steps=10 if hparams.debug else None,
-            # val_steps=50 if hparams.debug else None,
         )
 
         # Unfreeze all
-        for p in model.parameters():
+        for p in frozen_params:
             p.requires_grad = True
 
         # Reinit again to avoid NaN's in loss
@@ -147,8 +147,6 @@ def main():
         val_loader=val_loader,
         start_epoch=hparams.decoder_warmup_epochs,
         epochs=sheduler.tot_epochs,
-        steps_per_epoch=10 if hparams.debug else None,
-        val_steps=10 if hparams.debug else None,
     )
 
 

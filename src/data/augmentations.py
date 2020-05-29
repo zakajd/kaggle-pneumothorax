@@ -32,8 +32,25 @@ def get_aug(aug_type="val", size=512):
 
     LIGHT_AUG = albu.Compose([CROP_AUG, albu.HorizontalFlip(), NORM_TO_TENSOR])
 
+    # 6'th place https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation/discussion/107743
+    LIGHT_MEDIUM_AUG = albu.Compose([
+        albu.HorizontalFlip(),
+        albu.OneOf([
+              albu.ElasticTransform(
+                  alpha=300,
+                  sigma=300 * 0.05,
+                  alpha_affine=300 * 0.03),
+              albu.GridDistortion(),
+              albu.OpticalDistortion(distort_limit=2, shift_limit=0.5),
+           ], p=0.3
+       ),
+       albu.RandomSizedCrop(min_max_height=(900, 1024), height=1024, width=1024, p=0.5),
+       albu.ShiftScaleRotate(rotate_limit=20, p=0.5),
+       CROP_AUG,
+       NORM_TO_TENSOR,
+    ])
+
     MEDIUM_AUG = albu.Compose([
-        CROP_AUG,
         albu.HorizontalFlip(),
         # Spatial-preserving augmentations:
         albu.OneOf([
@@ -47,13 +64,16 @@ def get_aug(aug_type="val", size=512):
             albu.OpticalDistortion(distort_limit=2, shift_limit=0.5),
             ], p=0.3),
         albu.ShiftScaleRotate(rotate_limit=15),
+        CROP_AUG,
         NORM_TO_TENSOR,
     ])
+
     
     types = {
         "val" : VAL_AUG,
         "test" : TEST_AUG,
         "light" : LIGHT_AUG,
+        "light_medium": LIGHT_MEDIUM_AUG,
         "medium" : MEDIUM_AUG,
     }
 

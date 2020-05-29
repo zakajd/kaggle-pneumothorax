@@ -20,11 +20,16 @@ def dice(gt, pred):
     if gt.shape != pred.shape:
         raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
 
-    if gt.any() or pred.any():
+    gt_is_zero = not gt.any()
+    pred_is_zero = not pred.any()
+
+    if gt_is_zero and pred_is_zero:
+        return 1
+    elif gt_is_zero or pred_is_zero:
+        return 0
+    else:
         intersection = np.logical_and(gt, pred)
         return 2. * intersection.sum() / (gt.sum() + pred.sum())
-    else:
-        return 1
 
 
 def test(hparams):
@@ -47,10 +52,11 @@ def test(hparams):
         image_name = os.path.basename(gt_mask_path)
         gt = skimage.io.imread(gt_mask_path) > 0
         pred = skimage.io.imread(os.path.join(pred_masks_dir, image_name))
-        pred = skimage.transform.resize(pred, gt.shape) > 0.5
+        pred = skimage.transform.resize(pred, gt.shape) > hparams.threshold
 
-        # if pred.sum() <= 1000:
-        #     pred = pred * 0
+        if hparams.delete_small:
+            if pred.sum() <= 1000:
+                pred = pred * 0
 
         dice_val = dice(gt, pred)
         tn, fp, fn, tp = confusion_matrix([gt.any()], [pred.any()], labels=[0, 1]).ravel()
@@ -62,7 +68,7 @@ def test(hparams):
 
     output_dir = os.path.join(hparams.output_path, hparams.name)
     os.makedirs(output_dir, exist_ok=True)
-    scores.to_csv(os.path.join(output_dir, '{}_scores.csv'.format(hparams.fold)))
+    scores.to_csv(os.path.join(output_dir, hparams.prefix + '{}_scores.csv'.format(hparams.fold)))
 
 
 if __name__ == "__main__":
@@ -76,6 +82,12 @@ if __name__ == "__main__":
         "--masks_path", type=str, default="data/processed", help="Root path with masks")
     parser.add_argument(
         "--output_path", type=str, default="data/scores", help="Path to save scores")
+    parser.add_argument(
+        "--delete_small", action='store_true', help='If area of mask < 1000, remove it')
+    parser.add_argument(
+        '--threshold', type=float, default=0.5, help='Threshold for binarization')
+    parser.add_argument(
+        '--prefix', type=str, default='', help='Prefix for output names')
 
     hparams = parser.parse_args()
     print(f"Parameters used for test: {hparams}")
