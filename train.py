@@ -97,18 +97,18 @@ def main():
         optimizer,
         criterion=loss,
         callbacks=[
-            sheduler,
             pt_clb.Timer(),
             pt_clb.ConsoleLogger(),
             pt_clb.FileLogger(hparams.outdir, logger=logger),
+            PredictViewer(hparams.outdir, num_images=4),
             pt_clb.CheckpointSaver(hparams.outdir, save_name="model.chpn"),
-            PredictViewer(hparams.outdir, num_images=4)
+            sheduler,
+            pt_clb.EarlyStopping(**hparams.early_stopping)
         ],
         metrics=[
             bce_loss,
             pt.metrics.JaccardScore(mode="binary").cuda(),
             pt.metrics.DiceScore(mode="binary").cuda()
-            # ThrJaccardScore(thr=0.5),
         ],
     )
 
@@ -142,12 +142,18 @@ def main():
         runner.state.optimizer = optimizer
 
     # Train both encoder and decoder
-    runner.fit(
-        train_loader,
-        val_loader=val_loader,
-        start_epoch=hparams.decoder_warmup_epochs,
-        epochs=sheduler.tot_epochs,
-    )
+    for i, phase in enumerate(sheduler.phases):
+        start_epoch, end_epoch = phase['ep']
+        if i == 0:
+            start_epoch += hparams.decoder_warmup_epochs
+        print(f'Start phase #{i + 1} from epoch {start_epoch} until epoch {end_epoch}: {phase} ')
+
+        runner.fit(
+            train_loader,
+            val_loader=val_loader,
+            start_epoch=start_epoch,
+            epochs=end_epoch,
+        )
 
 
 if __name__ == "__main__":

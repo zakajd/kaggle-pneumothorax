@@ -1,0 +1,45 @@
+batch_size: 40
+workers: 16
+augmentation: medium
+debug: False
+opt_level: O1
+resume: ""
+pos_weight: 0.5
+
+# Model
+segm_arch: unet
+backbone: resnet34
+
+model_params: {
+    encoder_weights: 'imagenet',
+    norm_layer: 'inplaceabn',
+    norm_act: 'leaky_relu',
+    decoder_channels: [256, 128, 64, 32, 32]}
+
+ws: False
+
+# Training
+optim: adam
+weight_decay: 0.00001
+size: 512
+phases: [
+    {'ep':[0, 30], 'lr': 0.001, mode: ReduceLROnPlateau,
+    "params": {'factor':0.5, "patience": 3, "min_lr":0.0000001, "mode":"min", "restore_best_weights": True}}
+]
+
+early_stopping:
+    min_delta: 0.00001
+    patience: 6
+    mode: "min"
+    restore_best_weights: True
+
+decoder_warmup_epochs: 1
+criterion: [bce, 1]
+
+# Validation&Testing
+validate: False
+val_size: 512
+tta: False
+
+
+

@@ -43,6 +43,7 @@ def get_parser():
         action='append',
         help="Specify epoch order of data resize and learning rate schedule",
     )
+    add_arg("--early_stopping", type=eval, default={}, help="")
     add_arg("--decoder_warmup_epochs", default=0, type=int, help="Number of epochs for training only decoder")
     add_arg(
         "--criterion", type=str, nargs="+", help="List of criterions to use. Should be like `bce 0.5 dice 0.5`",
