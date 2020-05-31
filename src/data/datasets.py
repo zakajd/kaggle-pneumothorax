@@ -109,6 +109,42 @@ def get_test_dataloader(
     return test_loader, test_dataset.images
 
 
+def get_ssl_dataloaders(train_val_folder, train_val_csv_path, train_size, val_size, fold, ssl_path, augmentation, pos_weight, batch_size, workers):
+    train_aug = get_aug(augmentation, train_size)
+    val_aug = get_aug('val', val_size)
+    ssl_aug = get_aug('light', train_size)
+    train_dataset = PneumothoraxDataset(train_val_folder, train_val_csv_path, fold, True, train_aug)
+    val_dataset = PneumothoraxDataset(train_val_folder, train_val_csv_path, fold, False, val_aug)
+    ssl_dataset = PneumothoraxTestDataset(ssl_path, ssl_aug, use_root_path=True)
+    label_to_weight = {
+        0: 1 - pos_weight,
+        1: pos_weight
+    }
+    weights = [label_to_weight[k] for k in train_dataset.classes]
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        sampler=WeightedRandomSampler(weights, num_samples=len(train_dataset), replacement=True),
+        num_workers=workers,
+        drop_last=True,
+        pin_memory=True)
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        num_workers=workers,
+        pin_memory=True)
+
+    ssl_loader = DataLoader(
+        ssl_dataset,
+        batch_size=batch_size,
+        num_workers=workers,
+        pin_memory=True)
+
+    return train_loader, val_loader, ssl_loader
+
+
 class PneumothoraxDataset(torch.utils.data.Dataset):
     "Dataset for SIIM-ACR Pneumothorax Segmentation challenge"
     def __init__(
@@ -128,10 +164,9 @@ class PneumothoraxDataset(torch.utils.data.Dataset):
         """
         # Read DF, convert columns to right dtype and filter by `train` and `fold`
         df = pd.read_csv(train_val_csv_path)
-        df = df.astype({'Index': str, 'Class': int, 'Fold': int, 'Train': int})
+        df = df.astype({'Index': str, 'Class': int, 'Fold': str, 'Train': int})
         df = df.astype({'Train': bool})
         df = df[(df["Train"] == train) & (df["Fold"] == fold)]
-
         self.images = list(root + "/images/" + df["Index"] + ".png")
         self.masks = list(root + "/masks/" + df["Index"] + ".png")
 
@@ -168,14 +203,18 @@ class PneumothoraxDataset(torch.utils.data.Dataset):
 
 class PneumothoraxTestDataset(torch.utils.data.Dataset):
     "Test dataset for SIIM-ACR Pneumothorax Segmentation challenge"
-    def __init__(self, root="data/interim", transform=None):
+    def __init__(self, root="data/interim", transform=None, use_root_path = False):
         """
         Args:
             root (str): Path to folder with all training data
             transform (albu.Compose): albumentation transformation for images
         """
         self.root = root
-        self.images = sorted(os.listdir(root + '/test_images'))  # Order files
+        self.use_root_path = use_root_path
+        if use_root_path:
+            self.images = sorted(os.listdir(root))
+        else:
+            self.images = sorted(os.listdir(root + '/test_images'))  # Order files
         self.transform = albu.Compose([]) if transform is None else transform
 
     def __len__(self):
@@ -188,7 +227,10 @@ class PneumothoraxTestDataset(torch.utils.data.Dataset):
         Returns:
             tuple: (image, filename)
         """
-        image_path = self.root + "/test_images/" + self.images[index]
+        if self.use_root_path:
+            image_path = self.root + self.images[index]
+        else:
+            image_path = self.root + "/test_images/" + self.images[index]
         image = cv2.imread(image_path) #, cv2.IMREAD_GRAYSCALE
         # Greyscale -> PseudoRGB
         # image = np.stack([image, image, image], axis=2)
