@@ -4,11 +4,12 @@ import os
 import yaml
 import skimage.io
 import skimage.transform
+import skimage.morphology
+import skimage.measure
 import numpy as np
 import pandas as pd
 import tqdm
 from sklearn.metrics import confusion_matrix
-
 
 from src.data.datasets import PneumothoraxDataset
 
@@ -32,6 +33,62 @@ def dice(gt, pred):
         return 2. * intersection.sum() / (gt.sum() + pred.sum())
 
 
+def iou_score(mask1, mask2):
+    return np.logical_and(mask1, mask2).sum() / np.logical_or(mask1, mask2).sum()
+
+
+def label_mask(mask):
+    mask = (mask > 0).astype(np.uint8)
+    dilated_mask = skimage.morphology.binary_dilation(mask, np.ones((10, 10)))
+    labeled, num = skimage.measure.label(dilated_mask, connectivity=2, return_num=True)
+    return labeled * mask, num
+
+
+def calculate_areas(labeled_mask, num):
+    return [(labeled_mask == label).sum() for label in range(1, num + 1)]
+
+
+def match_regions(labeled_true, num_true, labeled_pred, num_pred, hparams):
+    regions_areas = calculate_areas(labeled_pred, num_pred)
+    sorted_pred_labels = np.argsort(regions_areas)[::-1] + 1
+    true_labels = np.array(range(1, num_true + 1))
+
+    tp = 0
+    fp = 0
+    matched_true_labels = set()
+    for i in sorted_pred_labels:
+        mask_pred = labeled_pred == i
+
+        best_match = -1
+        best_score = hparams.min_iou
+
+        for j in true_labels:
+            mask_true = labeled_true == j
+            match_score = iou_score(mask_true, mask_pred)
+
+            if (j not in matched_true_labels) and (match_score > best_score):
+                best_match = j
+                best_score = match_score
+
+        if best_match != -1:
+            tp += 1
+            matched_true_labels.add(best_match)
+        else:
+            fp += 1
+
+    fn = 0
+    for j in true_labels:
+        if j not in matched_true_labels:
+            fn += 1
+    return tp, fp, fn
+
+
+def save_df(df, name, hparams):
+    output_dir = os.path.join(hparams.output_path, hparams.name)
+    os.makedirs(output_dir, exist_ok=True)
+    df.to_csv(os.path.join(output_dir, hparams.prefix + f'{hparams.fold}_{name}.csv'))
+
+
 def test(hparams):
     assert os.path.exists(hparams.config_path)
     with open(os.path.join(hparams.config_path, "config.yaml"), "r") as file:
@@ -47,28 +104,88 @@ def test(hparams):
         train=False,
     )
 
-    scores = {}
+    threshold_probs = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+    threshold_areas = [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
+
+    image_names = [os.path.basename(path) for path in dataset.masks]
+    classification = pd.DataFrame(index=image_names)
+    segmentation = pd.DataFrame(index=image_names)
+    detection = pd.DataFrame(index=image_names)
+
     for gt_mask_path in tqdm.tqdm(dataset.masks):
         image_name = os.path.basename(gt_mask_path)
         gt = skimage.io.imread(gt_mask_path) > 0
+        labeled_gt, num_gt = skimage.measure.label(gt, connectivity=2, return_num=True)
+
+        classification.loc[image_name, 'gt'] = gt.any()
+
         pred = skimage.io.imread(os.path.join(pred_masks_dir, image_name))
-        pred = skimage.transform.resize(pred, gt.shape) > hparams.threshold
+        pred = skimage.transform.resize(pred, gt.shape)
 
-        if hparams.delete_small:
-            if pred.sum() <= 1000:
-                pred = pred * 0
+        for threshold_prob in threshold_probs:
+            binarized_pred = pred > threshold_prob
+            labeled_pred, num_pred = skimage.measure.label(binarized_pred, connectivity=2, return_num=True)
+            regions_areas = calculate_areas(labeled_pred, num_pred)
 
-        dice_val = dice(gt, pred)
-        tn, fp, fn, tp = confusion_matrix([gt.any()], [pred.any()], labels=[0, 1]).ravel()
-        scores[image_name] = [dice_val, tn, fp, fn, tp, gt.sum(), pred.sum()]
+            for threshold_area in threshold_areas:
+                final_labeled_pred = np.zeros(labeled_pred.shape)
 
-    scores = pd.DataFrame.from_dict(scores, orient='index', columns=['dice', "tn", "fp", "fn", "tp", 'gt_area', 'pred_area'])
-    scores.loc['MEAN'] = scores.mean(axis=0)
-    print(scores.loc['MEAN'])
+                new_label = 1
+                for label, area in zip(range(1, num_pred + 1), regions_areas):
+                    if area > threshold_area:
+                        final_labeled_pred += (labeled_pred == label) * new_label
+                        new_label += 1
 
-    output_dir = os.path.join(hparams.output_path, hparams.name)
-    os.makedirs(output_dir, exist_ok=True)
-    scores.to_csv(os.path.join(output_dir, hparams.prefix + '{}_scores.csv'.format(hparams.fold)))
+                final_pred = final_labeled_pred > 0
+                final_num_pred = new_label - 1
+
+                classification.loc[image_name, f'{threshold_prob}, {threshold_area}'] = final_pred.any()
+                segmentation.loc[image_name, f'{threshold_prob}, {threshold_area}'] = dice(gt, final_pred)
+
+                tp, fp, fn = match_regions(labeled_gt, num_gt, final_labeled_pred, final_num_pred, hparams)
+                detection.loc[image_name, f'tp {threshold_prob}, {threshold_area}'] = tp
+                detection.loc[image_name, f'fp {threshold_prob}, {threshold_area}'] = fp
+                detection.loc[image_name, f'fn {threshold_prob}, {threshold_area}'] = fn
+
+    save_df(classification, 'classification', hparams)
+    save_df(segmentation, 'segmentation', hparams)
+    save_df(detection, 'detection', hparams)
+
+    classification_scores = pd.DataFrame(columns=["sensitivity", "specificity", "precision", "f1"])
+    segmentation_scores = pd.DataFrame(columns=['dice'])
+    detection_scores = pd.DataFrame(columns=["sensitivity", "precision", "f1"])
+    y_true = classification['gt'].values.astype(int)
+
+    for threshold_prob in threshold_probs:
+        for threshold_area in threshold_areas:
+            y_pred = classification[f'{threshold_prob}, {threshold_area}'].values.astype(int)
+            tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
+            sensitivity = tp / (tp + fn)
+            specificity = tn / (tn + fp)
+            precision = tp / (tp + fp)
+            f1 = 2 * (precision * sensitivity) / (precision + sensitivity)
+            classification_scores.loc[f'{threshold_prob}, {threshold_area}'] = \
+                [sensitivity, specificity, precision, f1]
+
+            dices = segmentation[f'{threshold_prob}, {threshold_area}'].values.astype(float)
+            segmentation_scores.loc[f'{threshold_prob}, {threshold_area}'] = np.mean(dices)
+
+            tp = detection[f'tp {threshold_prob}, {threshold_area}'].values.astype(int).sum()
+            fp = detection[f'fp {threshold_prob}, {threshold_area}'].values.astype(int).sum()
+            fn = detection[f'fn {threshold_prob}, {threshold_area}'].values.astype(int).sum()
+            precision = tp / (tp + fp)
+            sensitivity = tp / (tp + fn)
+            f1 = 2 * (precision * sensitivity) / (precision + sensitivity)
+            detection_scores.loc[f'{threshold_prob}, {threshold_area}'] = [sensitivity, precision, f1]
+
+    classification_scores = classification_scores.sort_values(by=['f1'], ascending=False)
+    segmentation_scores = segmentation_scores.sort_values(by=['dice'], ascending=False)
+    detection_scores = detection_scores.sort_values(by=['f1'], ascending=False)
+
+    save_df(classification_scores, 'classification_scores', hparams)
+    save_df(segmentation_scores, 'segmentation_scores', hparams)
+    save_df(detection_scores, 'detection_scores', hparams)
+
 
 
 if __name__ == "__main__":
@@ -83,9 +200,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_path", type=str, default="data/scores", help="Path to save scores")
     parser.add_argument(
-        "--delete_small", action='store_true', help='If area of mask < 1000, remove it')
-    parser.add_argument(
-        '--threshold', type=float, default=0.5, help='Threshold for binarization')
+        "--min_iou", type=float, default=0.5)
     parser.add_argument(
         '--prefix', type=str, default='', help='Prefix for output names')
 
