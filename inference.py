@@ -43,12 +43,9 @@ def predict_from_loader(model, loader, file_names, output_path):
         # Take images if (images, masks) returned
         if isinstance(batch, (list, tuple)):
             batch = batch[0]
-        # B x 4 x H x W -> B x H x W 
-        prediction = model(batch).sigmoid().cpu().squeeze()
-
+        prediction = model(batch).sigmoid().cpu()
         for p in prediction:
-            p = (p.numpy() * 255).astype(np.uint8)
-            print(os.path.join(output_path, file_names[idx]))
+            p = (p.squeeze().numpy() * 255).astype(np.uint8)
             skimage.io.imsave(os.path.join(output_path, file_names[idx]), p)
             idx += 1
 
