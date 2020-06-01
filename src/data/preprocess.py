@@ -84,8 +84,8 @@ def main(hparams):
     shutil.rmtree(hparams.output_path + '/test_images', ignore_errors=True)
     os.makedirs(hparams.output_path + '/test_images')
     for idx in tqdm(range(len(test_dcms))):
-        dataset = pydicom.dcmread(train_dcms[idx])
-        img_id = train_dcms[idx].split('/')[-1][:-4]
+        dataset = pydicom.dcmread(test_dcms[idx])
+        img_id = test_dcms[idx].split('/')[-1][:-4]
 
         # Load image data
         pixels = clahe.apply(dataset.pixel_array) if hparams.use_clahe else dataset.pixel_array
