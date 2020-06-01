@@ -3,9 +3,11 @@ import torch
 import albumentations as albu
 import albumentations.pytorch as albu_pt
 
+
 ## Default ImageNet mean and std
 MEAN = (0.485, 0.456, 0.406)
 STD = (0.229, 0.224, 0.225)
+
 
 def get_aug(aug_type="val", size=512):
     """Return augmentations by type
@@ -59,15 +61,40 @@ def get_aug(aug_type="val", size=512):
             albu.RandomBrightness(),
             ], p=0.3),
         albu.OneOf([
-            albu.ElasticTransform(alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03),
+            albu.ElasticTransform(
+                alpha=300,
+                sigma=300 * 0.05,
+                alpha_affine=300 * 0.03),
             albu.GridDistortion(),
             albu.OpticalDistortion(distort_limit=2, shift_limit=0.5),
-            ], p=0.3),
-        albu.ShiftScaleRotate(rotate_limit=15),
+        ], p=0.3),
+        albu.RandomSizedCrop(min_max_height=(900, 1024), height=1024, width=1024, p=0.5),
+        albu.ShiftScaleRotate(rotate_limit=20, p=0.5),
         CROP_AUG,
         NORM_TO_TENSOR,
     ])
 
+    HARD_AUG = albu.Compose([
+        albu.HorizontalFlip(),
+        # Spatial-preserving augmentations:
+        albu.OneOf([
+            albu.RandomContrast(),
+            albu.RandomGamma(),
+            albu.RandomBrightness(),
+        ], p=0.3),
+        albu.OneOf([
+            albu.ElasticTransform(
+                alpha=300,
+                sigma=300 * 0.05,
+                alpha_affine=300 * 0.03),
+            albu.GridDistortion(),
+            albu.OpticalDistortion(distort_limit=2, shift_limit=0.5),
+        ], p=0.3),
+        albu.RandomSizedCrop(min_max_height=(512, 1024), height=1024, width=1024, p=0.5),
+        albu.ShiftScaleRotate(rotate_limit=20, p=0.5),
+        CROP_AUG,
+        NORM_TO_TENSOR,
+    ])
     
     types = {
         "val" : VAL_AUG,
@@ -75,6 +102,7 @@ def get_aug(aug_type="val", size=512):
         "light" : LIGHT_AUG,
         "light_medium": LIGHT_MEDIUM_AUG,
         "medium" : MEDIUM_AUG,
+        "hard": HARD_AUG,
     }
 
     return types[aug_type]
