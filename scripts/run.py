@@ -37,9 +37,10 @@ for fold in folds:
             'python',
             'inference.py',
             "--config_path", os.path.join('data/logs', config_name, str(fold)),
-            '--predict_val',
             *unknownargs
         ]
+        if len(unknownargs) == 0:
+            command += ['--predict_val']
         commands.append(command)
         jobname += '_inf'
 
@@ -50,6 +51,8 @@ for fold in folds:
             "--config_path", os.path.join('data/logs', config_name, str(fold)),
             *unknownargs
         ]
+        if len(unknownargs) == 0:
+            command += ['--test_val']
         commands.append(command)
         jobname += '_test'
 
