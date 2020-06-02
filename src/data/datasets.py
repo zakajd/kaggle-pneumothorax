@@ -112,7 +112,7 @@ def get_test_dataloader(
 def get_ssl_dataloaders(train_val_folder, train_val_csv_path, train_size, val_size, fold, ssl_path, augmentation, pos_weight, batch_size, workers):
     train_aug = get_aug(augmentation, train_size)
     val_aug = get_aug('val', val_size)
-    ssl_aug = get_aug('light', train_size)
+    ssl_aug = get_aug('ssl', train_size)
     train_dataset = PneumothoraxDataset(train_val_folder, train_val_csv_path, fold, True, train_aug)
     val_dataset = PneumothoraxDataset(train_val_folder, train_val_csv_path, fold, False, val_aug)
     ssl_dataset = PneumothoraxTestDataset(ssl_path, ssl_aug, use_root_path=True)
@@ -139,7 +139,9 @@ def get_ssl_dataloaders(train_val_folder, train_val_csv_path, train_size, val_si
     ssl_loader = DataLoader(
         ssl_dataset,
         batch_size=batch_size,
+        shuffle=True,
         num_workers=workers,
+        drop_last=True,
         pin_memory=True)
 
     return train_loader, val_loader, ssl_loader

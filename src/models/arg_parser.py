@@ -53,6 +53,23 @@ def get_parser():
     add_arg("--val_size", type=int, default=768, help="Predict on resized, then upscale")
     add_arg("--tta", dest='tta', default=False, action='store_true',
         help="Flag to use TTA for validation and test sets")
+
+    # SSL
+    add_arg("--epochs", default=512, type=int, help="# epochs")
+    add_arg("--train_size", default=512, type=int, help="Image size for training")
+    add_arg("--ssl_size", default=512, type=int, help="Image size for semi-sup training")
+    add_arg("--pos_weight_start", default=0.8, type=float, help="Start pos. samples for training")
+    add_arg("--pos_weight_end", default=0.4, type=float, help="End pos. samples for training")
+    add_arg("--logdir", default='./', type=str, help="Def. dir for tboard logging")
+    add_arg("--snapdir", default='./', type=str, help="Def. dir for snapshots")
+    add_arg("--train_val_folder", default='./', type=str, help="Def. dir to files")
+    add_arg("--train_val_csv_path", default='./', type=str, help="Path to labels and folds")
+    add_arg("--ssl_path", default='./', type=str, help="Path to unlabelled data")
+    add_arg("--lr", default=0.001, type=float, help="Learning rate")
+    add_arg("--ssl_function", default='pseudolabelling', type=str, help="Name of pseudolabel. function")
+    add_arg("--device", default='cpu', type=str, help="Device name")
+    add_arg("--scheduler", default='MultiStepLR', type=str, help="Name of scheduler")
+    add_arg("--scheduler_params", default={}, type=eval, help="Scheduler params")
     return parser
 
 

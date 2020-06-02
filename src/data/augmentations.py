@@ -32,6 +32,14 @@ def get_aug(aug_type="val", size=512):
 
     LIGHT_AUG = albu.Compose([CROP_AUG, albu.HorizontalFlip(), NORM_TO_TENSOR])
 
+    SSL_AUG = albu.Compose([
+        CROP_AUG,
+        albu.HorizontalFlip(),
+        albu.VerticalFlip(),
+        albu.ShiftScaleRotate(rotate_limit=15),
+        albu.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1),
+        NORM_TO_TENSOR])
+
     MEDIUM_AUG = albu.Compose([
         CROP_AUG,
         albu.HorizontalFlip(),
@@ -55,6 +63,7 @@ def get_aug(aug_type="val", size=512):
         "test" : TEST_AUG,
         "light" : LIGHT_AUG,
         "medium" : MEDIUM_AUG,
+        "ssl": SSL_AUG
     }
 
     return types[aug_type]

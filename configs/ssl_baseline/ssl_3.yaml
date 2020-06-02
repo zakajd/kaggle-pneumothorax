@@ -1,0 +1,40 @@
+name: baseline8_f3
+epochs: 30
+fold: 3
+train_size: 512
+val_size: 512
+ssl_size: 512
+augmentation: 'ssl'
+batch_size: 8
+pos_weight_start: 0.8
+pos_weight_end: 0.4
+workers: 6
+device: 'cuda:0'
+criterion: ['bce', 2, 'dice', 1, 'focal', 2]
+logdir: '/import/AI-Dx_working/User/Ilyas/aux_proj_data/DL_SSL/logs/'
+snapdir: '/import/AI-Dx_working/User/Ilyas/aux_proj_data/DL_SSL/snapshots/'
+
+train_val_folder: '/import/AI-Dx_working/User/DomainAdaptation/kaggle-pneumothorax/data/interim'
+train_val_csv_path: '/import/AI-Dx_working/User/DomainAdaptation/kaggle-pneumothorax/data/interim/train_val.csv'
+ssl_path: '/import/AI-Dx_working/User/Ilyas/cxr_data/mimic_pntrx/'
+
+segm_arch: 'unet'
+backbone: 'resnet34'
+model_params: {
+    encoder_weights: 'imagenet',
+    norm_layer: 'inplaceabn',
+    norm_act: 'leaky_relu',
+    decoder_channels: [256, 128, 64, 32, 32]
+}
+
+scheduler: MultiStepLR
+scheduler_params: {
+    milestones: [10, 20],
+    gamma: 0.2
+}
+
+optim: 'AdamW'
+lr: 0.0005
+weight_decay: 0.00001
+
+ssl_function: none
