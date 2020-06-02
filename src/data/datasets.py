@@ -13,14 +13,14 @@ from src.utils import ToCudaLoader
 
 
 def get_dataloaders(
-    root='data/interim',
-    augmentation='light', 
-    fold=0,
-    pos_weight=0.5,
-    batch_size=4, 
-    size=512,
-    val_size=768,
-    workers=6):
+        root='data/interim',
+        augmentation='light',
+        fold=0,
+        pos_weight=0.5,
+        batch_size=4,
+        size=512,
+        val_size=768,
+        workers=6):
     """
     Args:
         root (str): Path to folder with data
@@ -44,14 +44,14 @@ def get_dataloaders(
         root=root,
         fold=fold,
         train=True,
-        transform=train_aug, 
+        transform=train_aug,
     )
 
     val_dataset = PneumothoraxDataset(
         root=root,
         fold=fold,
         train=False,
-        transform=val_aug, 
+        transform=val_aug,
     )
 
     # Fix class inbalance
@@ -63,13 +63,13 @@ def get_dataloaders(
     weights = [label_to_weight[k] for k in train_dataset.classes]
 
     train_loader = DataLoader(
-        train_dataset, 
-        batch_size=batch_size, 
+        train_dataset,
+        batch_size=batch_size,
         sampler=WeightedRandomSampler(weights, num_samples=len(train_dataset), replacement=True),
-        num_workers=workers, 
-        drop_last=True, 
+        num_workers=workers,
+        drop_last=True,
         pin_memory=True)
-        
+
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
@@ -79,17 +79,17 @@ def get_dataloaders(
     train_loader = ToCudaLoader(train_loader)
     val_loader = ToCudaLoader(val_loader)
 
-    print(f"\nUsing fold: {fold}. Train size: {len(train_dataset)},", 
-        f"Validation size: {len(val_dataset)}")
+    print(f"\nUsing fold: {fold}. Train size: {len(train_dataset)},",
+          f"Validation size: {len(val_dataset)}")
     return train_loader, val_loader
 
 
 def get_test_dataloader(
-    root="data/interim",
-    batch_size=8, 
-    size=768,
-    workers=6,
-    ):
+        root="data/interim",
+        batch_size=8,
+        size=768,
+        workers=6,
+):
     """
     Args:
         root (str): Path to folder with data
@@ -109,7 +109,8 @@ def get_test_dataloader(
     return test_loader, test_dataset.images
 
 
-def get_ssl_dataloaders(train_val_folder, train_val_csv_path, train_size, val_size, fold, ssl_path, augmentation, pos_weight, batch_size, workers):
+def get_ssl_dataloaders(train_val_folder, train_val_csv_path, train_size, val_size, fold, ssl_path, augmentation,
+                        pos_weight, batch_size, workers):
     train_aug = get_aug(augmentation, train_size)
     val_aug = get_aug('val', val_size)
     ssl_aug = get_aug('ssl', train_size)
@@ -149,13 +150,14 @@ def get_ssl_dataloaders(train_val_folder, train_val_csv_path, train_size, val_si
 
 class PneumothoraxDataset(torch.utils.data.Dataset):
     "Dataset for SIIM-ACR Pneumothorax Segmentation challenge"
+
     def __init__(
-        self, 
-        root="data/interim", 
-        train_val_csv_path="data/interim/train_val.csv",
-        fold=0,
-        train=True,
-        transform=None):
+            self,
+            root="data/interim",
+            train_val_csv_path="data/interim/train_val.csv",
+            fold=0,
+            train=True,
+            transform=None):
         """
         Args:
             root (str): Path to folder with all training data
@@ -189,7 +191,7 @@ class PneumothoraxDataset(torch.utils.data.Dataset):
         """
         image_path = self.images[index]
         mask_path = self.masks[index]
-        image = cv2.imread(image_path) # , cv2.IMREAD_GRAYSCALE
+        image = cv2.imread(image_path)  # , cv2.IMREAD_GRAYSCALE
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
         # Greyscale -> PseudoRGB
@@ -205,7 +207,8 @@ class PneumothoraxDataset(torch.utils.data.Dataset):
 
 class PneumothoraxTestDataset(torch.utils.data.Dataset):
     "Test dataset for SIIM-ACR Pneumothorax Segmentation challenge"
-    def __init__(self, root="data/interim", transform=None, use_root_path = False):
+
+    def __init__(self, root="data/interim", transform=None, use_root_path=False):
         """
         Args:
             root (str): Path to folder with all training data
@@ -233,12 +236,11 @@ class PneumothoraxTestDataset(torch.utils.data.Dataset):
             image_path = self.root + self.images[index]
         else:
             image_path = self.root + "/test_images/" + self.images[index]
-        image = cv2.imread(image_path) #, cv2.IMREAD_GRAYSCALE
+        image = cv2.imread(image_path)  # , cv2.IMREAD_GRAYSCALE
         # Greyscale -> PseudoRGB
         # image = np.stack([image, image, image], axis=2)
         image = self.transform(image=image)["image"]
         return image
-
 
 # class ImbalancedBinarySampler(torch.utils.data.sampler.Sampler):
 #     """Samples elements randomly from a given list of indices for imbalanced dataset
@@ -252,7 +254,7 @@ class PneumothoraxTestDataset(torch.utils.data.Dataset):
 
 #         self.indices = list(range(len(dataset)))
 #         self.num_samples = len(dataset)
-            
+
 #         # distribution of classes in the dataset 
 #         label_to_weight = {
 #             0: 1 - pos_weight,
