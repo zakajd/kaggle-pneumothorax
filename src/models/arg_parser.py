@@ -13,9 +13,10 @@ def get_parser():
     add_arg = parser.add_argument
 
     # General
-    add_arg("--name", type=str, help="Name of this run")
+    add_arg("--name", type=str, default=None, help="Name of this run")
     add_arg("--seed", type=int, help="Random seed for reprodusability")
     add_arg("--root", type=str, help="Path to preprocessed train data")
+    add_arg("--output_path", type=str, default='data/logs', help="Path to output logs/models")
     add_arg("--batch_size", type=int, help="Batch size")
     add_arg("--workers", type=int, help="№ of data loading workers ")
     add_arg("--augmentation", default="light", type=str,help="How hard augs are")
@@ -42,6 +43,7 @@ def get_parser():
         action='append',
         help="Specify epoch order of data resize and learning rate schedule",
     )
+    add_arg("--early_stopping", type=eval, default={}, help="")
     add_arg("--decoder_warmup_epochs", default=0, type=int, help="Number of epochs for training only decoder")
     add_arg(
         "--criterion", type=str, nargs="+", help="List of criterions to use. Should be like `bce 0.5 dice 0.5`",
@@ -78,12 +80,12 @@ def parse_args():
     args = parser.parse_args()
 
     # If folder already exist append version number
-    outdir = os.path.join("logs/", args.name)
-    if os.path.exists(outdir):
-        version = 1
-        while os.path.exists(outdir):
-            outdir = os.path.join("logs/", args.name + "_" + str(version))
-            version += 1
-
+    if args.name is None:
+        name = os.path.basename(args.config_file)
+        name = os.path.splitext(name)[0]
+        args.name = name
+    outdir = os.path.join(args.output_path, args.name, str(args.fold))
+    if args.resume != '':
+        args.resume = os.path.join(args.output_path, args.resume, str(args.fold), 'model.chpn')
     args.outdir = outdir
     return args

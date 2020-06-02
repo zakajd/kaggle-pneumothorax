@@ -2,19 +2,19 @@ import torch
 import pytorch_tools as pt
 from torchvision.utils import make_grid
 
+#
+class ThrJaccardScore(pt.metrics.JaccardScore):
+    """Calculate Jaccard on Thresholded by `thr` prediction. This function applyis sigmoid to prediction first"""
 
-# class ThrJaccardScore(pt.metrics.JaccardScore):
-#     """Calculate Jaccard on Thresholded by `thr` prediction. This function applyis sigmoid to prediction first"""
+    def __init__(self, *args, thr=0.5, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.from_logits = False
+        self.name = "ThrJaccard@" + str(thr)
+        self.thr = thr
 
-#     def __init__(self, *args, thr=0.5, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.from_logits = False
-#         self.name = "ThrJaccard@" + str(thr)
-#         self.thr = thr
-
-#     def forward(self, y_pred, y_true):
-#         y_pred = (y_pred.sigmoid() > self.thr).float()
-#         return super().forward(y_pred, y_true)
+    def forward(self, y_pred, y_true):
+        y_pred = (y_pred.sigmoid() > self.thr).float()
+        return super().forward(y_pred, y_true)
 
 
 class PredictViewer(pt.fit_wrapper.callbacks.TensorBoard):
@@ -40,8 +40,9 @@ class PredictViewer(pt.fit_wrapper.callbacks.TensorBoard):
     def on_epoch_end(self):
         super().on_epoch_end()
         self.state.model.eval()  # not sure if needed but just in case
-        pred = self.state.model(self.img_batch)
-        pred = (pred.sigmoid() * 255).type(torch.uint8)
-        grid = make_grid(pred, nrow=self.num_images)
-        grid = torch.cat([grid, self.target_grid], axis=1)
-        self.writer.add_image("val/prediction", grid, self.current_step)
+        with torch.no_grad():
+            pred = self.state.model(self.img_batch)
+            pred = (pred.sigmoid() * 255).type(torch.uint8)
+            grid = make_grid(pred, nrow=self.num_images)
+            grid = torch.cat([grid, self.target_grid], axis=1)
+            self.writer.add_image("val/prediction", grid, self.current_step)

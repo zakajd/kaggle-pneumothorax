@@ -1,6 +1,8 @@
 import os
 import yaml
 import time
+import sys
+import subprocess
 
 import apex
 import torch
@@ -15,18 +17,20 @@ from src.data.datasets import get_dataloaders
 from src.utils import MODEL_FROM_NAME, criterion_from_list
 from src.callbacks import PredictViewer
 
+
 def main():
-    # Setup logger
+    hparams = parse_args()
+
+    # Get config for this run
     config = {
     "handlers": [ 
         {"sink": sys.stdout, "format": "{time:[MM-DD HH:mm:ss]} - {message}"},
         {"sink": f"{hparams.outdir}/logs.txt", "format": "{time:[MM-DD HH:mm:ss]} - {message}"},
         ],
     }
-    logger.configure(**config)
 
-    # Get config for this run
-    hparams = parse_args()
+    # Setup logger
+    logger.configure(**config)
     logger.info(f"Parameters used for training: {hparams}")
 
     # Fix seeds for reprodusability
@@ -36,22 +40,10 @@ def main():
     os.makedirs(hparams.outdir, exist_ok=True)
     yaml.dump(vars(hparams), open(hparams.outdir + '/config.yaml', 'w'))
     kwargs = {"universal_newlines": True, "stdout": subprocess.PIPE}
-    with open(hparams.outdir + '/commit_hash.txt', 'w') as f:
-        f.write(subprocess.run(["git", "rev-parse", "--short", "HEAD"], **kwargs).stdout)
+    # with open(hparams.outdir + '/commit_hash.txt', 'w') as f:
+    #     f.write(subprocess.run(["gitc", "rev-parse", "--short", "HEAD"], **kwargs).stdout)
     with open(hparams.outdir + '/diff.txt', 'w') as f:
         f.write(subprocess.run(["git", "diff"], **kwargs).stdout)
-
-    ## Get dataloaders
-    train_loader, val_loader = get_dataloaders(
-        root=hparams.root, 
-        augmentation=hparams.augmentation,
-        fold=hparams.fold,
-        pos_weight=hparams.pos_weight,
-        batch_size=hparams.batch_size,
-        size=hparams.size, 
-        val_size=hparams.val_size,
-        workers=hparams.workers
-    )
 
     # Get model and optimizer
     model = MODEL_FROM_NAME[hparams.segm_arch](hparams.backbone, **hparams.model_params).cuda()
@@ -96,56 +88,78 @@ def main():
             pt_clb.Timer(),
             pt_clb.ConsoleLogger(),
             pt_clb.FileLogger(hparams.outdir, logger=logger),
+            PredictViewer(hparams.outdir, num_images=4),
             pt_clb.CheckpointSaver(hparams.outdir, save_name="model.chpn"),
             sheduler,
-            PredictViewer(hparams.outdir, num_images=4)
+            # pt_clb.EarlyStopping(**hparams.early_stopping)
         ],
         metrics=[
             bce_loss,
             pt.metrics.JaccardScore(mode="binary").cuda(),
-            # ThrJaccardScore(thr=0.5),
+            pt.metrics.DiceScore(mode="binary").cuda()
         ],
     )
 
-    if hparams.decoder_warmup_epochs > 0:
-        # Freeze encoder
-        for p in model.encoder.parameters():
-            p.requires_grad = False
+    # Train both encoder and decoder
+    for i, phase in enumerate(sheduler.phases):
+        start_epoch, end_epoch = phase['ep']
+
+        print(f'Start phase #{i + 1} from epoch {start_epoch} until epoch {end_epoch}: {phase} ')
+
+        ## Get dataloaders
+        train_loader, val_loader = get_dataloaders(
+            root=hparams.root,
+            augmentation=hparams.augmentation,
+            fold=hparams.fold,
+            pos_weight=phase["pos_weight"],
+            size=phase["size"],
+            val_size=phase["val_size"],
+            batch_size=hparams.batch_size,
+            workers=hparams.workers
+        )
+
+        if i == 0 and hparams.decoder_warmup_epochs > 0:
+            # Freeze encoder
+            frozen_params = []
+            for p in model.encoder.parameters():
+                if p.requires_grad is True:
+                    frozen_params.append(p)
+                    p.requires_grad = False
+
+            runner.fit(
+                train_loader,
+                val_loader=val_loader,
+                epochs=hparams.decoder_warmup_epochs,
+            )
+
+            # Unfreeze all
+            for p in frozen_params:
+                p.requires_grad = True
+
+            # Reinit again to avoid NaN's in loss
+            optimizer = optimizer_from_name(hparams.optim)(
+                model.parameters(),
+                weight_decay=hparams.weight_decay
+            )
+            model, optimizer = apex.amp.initialize(
+                model, optimizer, opt_level=hparams.opt_level, verbosity=0, loss_scale=2048
+            )
+            runner.state.model = model
+            runner.state.optimizer = optimizer
+
+            start_epoch += hparams.decoder_warmup_epochs
 
         runner.fit(
             train_loader,
             val_loader=val_loader,
-
-            epochs=hparams.decoder_warmup_epochs,
-            steps_per_epoch=10 if hparams.debug else None,
-            val_steps=10 if hparams.debug else None,
-            # val_steps=50 if hparams.debug else None,
+            start_epoch=start_epoch,
+            epochs=end_epoch,
         )
 
-        # Unfreeze all
-        for p in model.parameters():
-            p.requires_grad = True
-
-        # Reinit again to avoid NaN's in loss
-        optimizer = optimizer_from_name(hparams.optim)(
-            model.parameters(),
-            weight_decay=hparams.weight_decay
-        )
-        model, optimizer = apex.amp.initialize(
-            model, optimizer, opt_level=hparams.opt_level, verbosity=0, loss_scale=2048
-        )
-        runner.state.model = model
-        runner.state.optimizer = optimizer
-
-    # Train both encoder and decoder
-    runner.fit(
-        train_loader,
-        val_loader=val_loader,
-        start_epoch=hparams.decoder_warmup_epochs,
-        epochs=sheduler.tot_epochs,
-        steps_per_epoch=10 if hparams.debug else None,
-        val_steps=10 if hparams.debug else None,
-    )
+        print(f'Loading best model from previous phases')
+        checkpoint = torch.load(os.path.join(hparams.outdir, "model.chpn"))
+        model.load_state_dict(checkpoint["state_dict"])
+        del checkpoint
 
 
 if __name__ == "__main__":
