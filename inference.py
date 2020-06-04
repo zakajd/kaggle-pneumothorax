@@ -45,7 +45,7 @@ def predict_from_loader(model, loader, file_names, output_path):
             batch = batch[0]
         prediction = model(batch).sigmoid().cpu()
         for p in prediction:
-            p = (p.squeeze().numpy() * 255).astype(np.uint8)
+            p = (p[0].squeeze().numpy() * 255).astype(np.uint8)
             skimage.io.imsave(os.path.join(output_path, file_names[idx]), p)
             idx += 1
 
@@ -122,11 +122,13 @@ def main(hparams):
     # Add model parameters 
     with open(os.path.join(hparams.config_path, "config.yaml"), "r") as file:
         model_configs = yaml.load(file)
+        model_configs['use_jsrt_china_dataset'] = model_configs.get('use_jsrt_china_dataset', False)
     model_configs.update(vars(hparams))
     hparams = model_configs = argparse.Namespace(**model_configs)
 
     print("Loading model")
-    model = MODEL_FROM_NAME[hparams.segm_arch](hparams.backbone, **hparams.model_params)
+    model = MODEL_FROM_NAME[hparams.segm_arch](hparams.backbone, num_classes=(1 + hparams.use_jsrt_china_dataset),
+                                               **hparams.model_params)
 
     # Convert all Conv2D -> WS_Conv2d if needed
     if hparams.ws:
@@ -174,7 +176,7 @@ def main(hparams):
             workers=hparams.workers
         )
 
-        output_path = os.path.join(hparams.output_path, "hold_out_test_prediction", hparams.name)
+        output_path = os.path.join(hparams.output_path, "hold_out_test_prediction", hparams.name, str(hparams.fold))
         print(f"Saving validation masks to {output_path}")
 
         # Delete old masks if any

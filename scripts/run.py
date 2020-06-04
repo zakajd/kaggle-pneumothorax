@@ -8,6 +8,7 @@ parser.add_argument('--inference', action="store_true")
 parser.add_argument('--train', action="store_true")
 parser.add_argument('--test', action="store_true")
 parser.add_argument('--locally', action="store_true")
+parser.add_argument('--wogpu', action="store_true")
 parser.add_argument('--fold', type=int, required=False, default=None)
 args, unknownargs = parser.parse_known_args()
 print("Unknown args: ", unknownargs)
@@ -40,7 +41,8 @@ for fold in folds:
             *unknownargs
         ]
         if len(unknownargs) == 0:
-            command += ['--predict_val']
+            command += ['--predict_val',
+                        '--predict_hold_out_test']
         commands.append(command)
         jobname += '_inf'
 
@@ -60,7 +62,10 @@ for fold in folds:
         print("No command!!!")
         exit()
 
-    subprocess_input = ['./scripts/clusternode.sh'] + commands[0]
+    if args.wogpu:
+        subprocess_input = ['./scripts/clusternode_wo_gpu.sh'] + commands[0]
+    else:
+        subprocess_input = ['./scripts/clusternode.sh'] + commands[0]
     for command in commands[1:]:
         subprocess_input.append('&&')
         subprocess_input.extend(command)

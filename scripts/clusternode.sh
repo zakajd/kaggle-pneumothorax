@@ -11,9 +11,6 @@
 
 #SBATCH --partition=clusternodes
 
-##SBATCH --exclude=nvidia29,nvidia30,nvidia21,nvidia22,nvidia23
-##SBATCH --nodelist=nvidia31 #,nvidia30,nvidia29,nvidia28,nvidia26,nvidia25,nvidia24,nvidia23,nvidia22
-
 #SBATCH -o /home/CODE1/320001019/workspace/logs/sbatch/clusternode/%x-%j-%N.out # STDOUT
 #SBATCH -e /home/CODE1/320001019/workspace/logs/sbatch/clusternode/%x-%j-%N.err # STDERR
 

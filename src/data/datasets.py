@@ -17,10 +17,13 @@ def get_dataloaders(
     augmentation='light', 
     fold=0,
     pos_weight=0.5,
-    batch_size=4, 
+    batch_size=4,
     size=512,
     val_size=768,
-    workers=6):
+    workers=6,
+    use_jsrt_china_dataset=False,
+    lung_weight=None,
+):
     """
     Args:
         root (str): Path to folder with data
@@ -47,19 +50,35 @@ def get_dataloaders(
         transform=train_aug, 
     )
 
-    val_dataset = PneumothoraxDataset(
+    if use_jsrt_china_dataset:
+        train_dataset = JoinedDataset(
+            train_dataset,
+            JSRTDataset(transform=train_aug),
+            ChinaDataset(transform=train_aug),
+        )
+
+    ValDataset = JoinedValPneumothoraxDataset if use_jsrt_china_dataset else PneumothoraxDataset
+    val_dataset = ValDataset(
         root=root,
         fold=fold,
         train=False,
-        transform=val_aug, 
+        transform=val_aug,
     )
 
     # Fix class inbalance
-    # Distribution of classes in the dataset 
-    label_to_weight = {
-        0: 1 - pos_weight,
-        1: pos_weight
-    }
+    # Distribution of classes in the dataset
+    if lung_weight is not None:
+        label_to_weight = {
+            0: 1 - pos_weight - lung_weight,
+            1: pos_weight,
+            2: lung_weight
+        }
+    else:
+        label_to_weight = {
+            0: 1 - pos_weight,
+            1: pos_weight,
+            2: 1 - pos_weight
+        }
     weights = [label_to_weight[k] for k in train_dataset.classes]
 
     train_loader = DataLoader(
@@ -219,6 +238,101 @@ class PneumothoraxTestDataset(torch.utils.data.Dataset):
         image = self.transform(image=image)["image"]
         return image
 
+
+class JSRTChinaBase(torch.utils.data.Dataset):
+    def __init__(self, root, image_dirname, lungs_dirname, transform=None):
+        image_root = os.path.join(root, image_dirname)
+        lungs_root = os.path.join(root, lungs_dirname)
+        # clavicle_root = os.path.join(root, 'clavicles_png_masks')
+        # heart_root = os.path.join(root, 'heart_png_masks')
+
+        image_names = os.listdir(image_root)
+        image_names = [image_name for image_name in image_names if os.path.splitext(image_name)[1] == '.png']
+
+        self.images = [os.path.join(image_root, name) for name in image_names]
+        self.lung_masks = [os.path.join(lungs_root, name) for name in image_names]
+        self.classes = [2] * len(image_names)
+        self.transform = albu.Compose([]) if transform is None else transform
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image, image_mask, target) where target is the image segmentation.
+        """
+        image_path = self.images[index]
+        mask_path = self.lung_masks[index]
+        image = cv2.imread(image_path) # , cv2.IMREAD_GRAYSCALE
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+
+        # Greyscale -> PseudoRGB
+        # image = np.stack([image, image, image], axis=2)
+        # np.repeat()
+
+        # Apply Albumentation transform
+        trfm = self.transform(image=image, mask=mask)
+        image, mask = trfm["image"], trfm["mask"]
+        return image, mask.unsqueeze(0) / 255.0
+
+
+class JSRTDataset(JSRTChinaBase):
+    def __init__(self, root='data/jsrt', transform=None):
+        super().__init__(root=root,
+                         image_dirname='jsrt_png_imgs',
+                         lungs_dirname='lungs_png_masks',
+                         transform=transform)
+
+
+class ChinaDataset(JSRTChinaBase):
+    def __init__(self, root='data/china', transform=None):
+        super().__init__(root=root,
+                         image_dirname='china_png_imgs',
+                         lungs_dirname='lungs_png_masks',
+                         transform=transform)
+
+
+class JoinedDataset(torch.utils.data.Dataset):
+    def __init__(self, pneumothorax_dataset, jsrt_dataset, china_dataset):
+        self.pneumothorax = pneumothorax_dataset
+        self.jsrt = jsrt_dataset
+        self.china = china_dataset
+        self.classes = self.pneumothorax.classes + self.jsrt.classes + self.china.classes
+
+    def __len__(self):
+        return len(self.pneumothorax) + len(self.jsrt) + len(self.china)
+
+    def __getitem__(self, index):
+        cum_sum_dataset_len = np.cumsum([len(dataset) for dataset in [self.pneumothorax, self.jsrt, self.china]])
+        dataset_index = np.searchsorted(cum_sum_dataset_len, index, side='right')
+
+        if dataset_index > 0:
+            index = index - cum_sum_dataset_len[dataset_index - 1]
+
+        if dataset_index == 0:
+            image, pneumo_mask = self.pneumothorax[index]
+            lung_mask = torch.empty(pneumo_mask.shape) * float('NaN')
+        elif dataset_index == 1:
+            image, lung_mask = self.jsrt[index]
+            pneumo_mask = torch.empty(lung_mask.shape) * float('NaN')
+        else:
+            image, lung_mask = self.china[index]
+            pneumo_mask = torch.empty(lung_mask.shape) * float('NaN')
+
+        mask = torch.cat((pneumo_mask, lung_mask), dim=0)
+        return image, mask
+
+
+class JoinedValPneumothoraxDataset(PneumothoraxDataset):
+    def __getitem__(self, index):
+        image, mask = super().__getitem__(index)
+
+        lung_mask = torch.empty(mask.shape) * float('NaN')
+        mask = torch.cat((mask, lung_mask), dim=0)
+        return image, mask
 
 # class ImbalancedBinarySampler(torch.utils.data.sampler.Sampler):
 #     """Samples elements randomly from a given list of indices for imbalanced dataset

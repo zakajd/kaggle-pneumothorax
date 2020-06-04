@@ -103,7 +103,7 @@ def save_df(df, name, hparams):
     if hparams.test_val:
         output_name = hparams.prefix + f'{hparams.fold}_{name}.csv'
     else:
-        output_name = hparams.prefix + f'test_{name}.csv'
+        output_name = hparams.prefix + f'test_{hparams.fold}_{name}.csv'
     df.to_csv(os.path.join(output_dir, hparams.prefix + output_name))
 
 
@@ -135,7 +135,7 @@ def test(hparams):
         assert hparams.threshold_area is not None
         threshold_probs = [hparams.threshold_prob]
         threshold_areas = [hparams.threshold_area]
-        pred_masks_dir = os.path.join(hparams.masks_path, "hold_out_test_prediction", hparams.name)
+        pred_masks_dir = os.path.join(hparams.masks_path, "hold_out_test_prediction", hparams.name, str(hparams.fold))
     else:
         raise ValueError('Specify of --test_val or --test_hold_out')
 

@@ -1,9 +1,49 @@
 import functools
 
 import numpy as np
-import pandas as pd
-from tqdm import tqdm
 import pytorch_tools as pt
+import torch.nn.functional as F
+import torch
+
+from pytorch_tools.losses.dice_jaccard import DiceLoss, JaccardLoss
+
+
+class CrossEntropyLoss(pt.losses.base.Loss):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = "BSE"
+
+    def forward(self, y_pred, y_true):
+        y_pred, y_true = y_pred.squeeze(), y_true.squeeze()
+        mask = ~torch.isnan(y_true)
+        loss = F.binary_cross_entropy_with_logits(y_pred[mask], y_true[mask])
+        return loss
+
+
+class DiceScoreFirstSlice(DiceLoss):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = "DiceScoreFirstSlice"
+
+    def __call__(self, y_pred, y_true):
+        y_pred, y_true = y_pred[:, [0]], y_true[:, [0]]
+        mask = ~torch.isnan(y_true[:, 0, 0, 0])
+        y_pred, y_true = y_pred[mask], y_true[mask]
+        loss = super().__call__(y_pred, y_true)
+        return 1 - loss
+
+
+class JaccardScoreFirstSlice(JaccardLoss):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = "JaccardScoreFirstSlice"
+
+    def __call__(self, y_pred, y_true):
+        y_pred, y_true = y_pred[:, [0]], y_true[:, [0]]
+        mask = ~torch.isnan(y_true[:, 0, 0, 0])
+        y_pred, y_true = y_pred[mask], y_true[mask]
+        loss = super().__call__(y_pred, y_true)
+        return 1 - loss
 
 
 MODEL_FROM_NAME = {
@@ -16,17 +56,17 @@ MODEL_FROM_NAME = {
 
 # All this losses expect raw logits as inputs. 
 LOSS_FROM_NAME = {
-    "bce": pt.losses.CrossEntropyLoss(mode="binary"),
-    "wbce": pt.losses.CrossEntropyLoss(mode="binary", weight=[5]),
-    "dice": pt.losses.DiceLoss(mode="binary"),
-    "jaccard": pt.losses.JaccardLoss(mode="binary", ),
-    # "log_jaccard": pt.losses.JaccardLoss(mode="binary", log_loss=True),
-    # "hinge": pt.losses.BinaryHinge(),
-    # "whinge": pt.losses.BinaryHinge(pos_weight=3),
-    "focal": pt.losses.FocalLoss(mode="binary"),
-    # "reduced_focal": pt.losses.BinaryFocalLoss(reduced=True),
-    "mse": pt.losses.MSELoss(),
-    "mae": pt.losses.L1Loss(),
+    "bce": CrossEntropyLoss(),
+    # "wbce": pt.losses.CrossEntropyLoss(mode="binary", weight=[5]),
+    # "dice": pt.losses.DiceLoss(mode="binary"),
+    # "jaccard": pt.losses.JaccardLoss(mode="binary", ),
+    # # "log_jaccard": pt.losses.JaccardLoss(mode="binary", log_loss=True),
+    # # "hinge": pt.losses.BinaryHinge(),
+    # # "whinge": pt.losses.BinaryHinge(pos_weight=3),
+    # "focal": pt.losses.FocalLoss(mode="binary"),
+    # # "reduced_focal": pt.losses.BinaryFocalLoss(reduced=True),
+    # "mse": pt.losses.MSELoss(),
+    # "mae": pt.losses.L1Loss(),
 }
 
 

@@ -50,7 +50,7 @@ def visualize(hparams):
         overlay = np.stack((pred, gt, np.zeros(pred.shape)), axis=2)
         image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
         overlay = 0.7 * image + 0.3 * overlay
-        overlay = np.concatenate((overlay, image), axis=1)
+        # overlay = np.concatenate((overlay, image), axis=1)
         skimage.io.imsave(os.path.join(output_dir, hparams.prefix + image_name), overlay.astype(np.uint8))
         i += 1
         if i >= hparams.n:

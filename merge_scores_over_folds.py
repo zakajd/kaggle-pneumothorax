@@ -15,7 +15,7 @@ for task, target_metric in [('segmentation', 'dice'),
                             ('classification', 'f1'),
                             ('detection', 'f1')]:
 
-    pat = f'{args.prefix}(?P<fold>.+)_{task}_scores.csv'
+    pat = f'{args.prefix}(?P<fold>\d+)_{task}_scores.csv'
 
     scores = []
     for filename in os.listdir(args.root):
@@ -45,4 +45,4 @@ for task, target_metric in [('segmentation', 'dice'),
         df = df.drop(['target'], axis=1)
 
         print(df)
-        df.to_csv(os.path.join(args.root, args.prefix + f'{task}_scores.csv'))
+        df.to_csv(os.path.join(args.root, args.prefix + f'{args.prefix}{task}_scores.csv'))

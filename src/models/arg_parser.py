@@ -31,7 +31,7 @@ def get_parser():
     add_arg("--backbone", default="se_resnet50", help="Backbone architecture")
     add_arg("--model_params", type=eval, default={}, help="Additional model params as kwargs")
     add_arg("--ws", default=False, action='store_true', help="Weight standartization")
-
+    add_arg("--use_jsrt_china_dataset", default=False, action='store_true', help="Add lung segmenation into the training")
 
     # Training
     add_arg("--optim", type=str, default="adamw", help="Optimizer to use (default: adamw)")

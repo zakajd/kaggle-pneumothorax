@@ -10,13 +10,11 @@ from loguru import logger
 import pytorch_tools as pt
 import pytorch_tools.fit_wrapper.callbacks as pt_clb 
 from pytorch_tools.optim import optimizer_from_name
-from pytorch_tools.fit_wrapper.callbacks import Callback as NoClb
 
 from src.models.arg_parser import parse_args
 from src.data.datasets import get_dataloaders
-from src.utils import MODEL_FROM_NAME, criterion_from_list
+from src.utils import MODEL_FROM_NAME, criterion_from_list, CrossEntropyLoss, DiceScoreFirstSlice, JaccardScoreFirstSlice
 from src.callbacks import PredictViewer
-
 
 def main():
     hparams = parse_args()
@@ -46,7 +44,8 @@ def main():
         f.write(subprocess.run(["git", "diff"], **kwargs).stdout)
 
     # Get model and optimizer
-    model = MODEL_FROM_NAME[hparams.segm_arch](hparams.backbone, **hparams.model_params).cuda()
+    model = MODEL_FROM_NAME[hparams.segm_arch](hparams.backbone, num_classes=(1 + hparams.use_jsrt_china_dataset),
+                                               **hparams.model_params).cuda()
     optimizer = optimizer_from_name(hparams.optim)(
         model.parameters(), # Get LR from phases later
         weight_decay=hparams.weight_decay
@@ -73,7 +72,7 @@ def main():
     loss = criterion_from_list(hparams.criterion).cuda()
     logger.info(f"Loss for this run is: {loss}")
 
-    bce_loss = pt.losses.CrossEntropyLoss(mode="binary").cuda() # Used as a metric
+    bce_loss = CrossEntropyLoss().cuda() # Used as a metric
     bce_loss.name = "BCE"
 
     # Scheduler is an advanced way of planning experiment
@@ -88,15 +87,15 @@ def main():
             pt_clb.Timer(),
             pt_clb.ConsoleLogger(),
             pt_clb.FileLogger(hparams.outdir, logger=logger),
-            PredictViewer(hparams.outdir, num_images=4),
+            # PredictViewer(hparams.outdir, num_images=4),
             pt_clb.CheckpointSaver(hparams.outdir, save_name="model.chpn"),
             sheduler,
             # pt_clb.EarlyStopping(**hparams.early_stopping)
         ],
         metrics=[
             bce_loss,
-            pt.metrics.JaccardScore(mode="binary").cuda(),
-            pt.metrics.DiceScore(mode="binary").cuda()
+            JaccardScoreFirstSlice(mode="binary").cuda(),
+            DiceScoreFirstSlice(mode="binary").cuda()
         ],
     )
 
@@ -112,10 +111,12 @@ def main():
             augmentation=hparams.augmentation,
             fold=hparams.fold,
             pos_weight=phase["pos_weight"],
+            lung_weight=phase.get('lung_weight'),
             size=phase["size"],
             val_size=phase["val_size"],
             batch_size=hparams.batch_size,
-            workers=hparams.workers
+            workers=hparams.workers,
+            use_jsrt_china_dataset=hparams.use_jsrt_china_dataset
         )
 
         if i == 0 and hparams.decoder_warmup_epochs > 0:
