@@ -1,6 +1,6 @@
 batch_size: 32
 workers: 16
-augmentation: hard
+augmentation: light
 debug: False
 opt_level: O1
 resume: ""

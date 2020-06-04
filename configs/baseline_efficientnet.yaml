@@ -1,19 +1,18 @@
 batch_size: 32
 workers: 16
-augmentation: hard
+augmentation: medium
 debug: False
 opt_level: O1
 resume: ""
 
 # Model
 segm_arch: unet
-backbone: resnet34
+backbone: efficientnet_b2
 
 model_params: {
     encoder_weights: 'imagenet',
     norm_layer: 'inplaceabn',
-    norm_act: 'leaky_relu',
-    decoder_channels: [256, 128, 64, 32, 32]}
+    norm_act: 'leaky_relu'}
 
 ws: False
 
@@ -25,7 +24,7 @@ phases: [
     {'ep':[10, 20], 'lr': 0.0001, pos_weight: 0.5, size: 512, val_size: 512},
     {'ep':[20, 30], 'lr': [0.0001, 0.00001], mode: 'cos', pos_weight: 0.4, size: 512, val_size: 512},
 ]
-decoder_warmup_epochs: 1
+decoder_warmup_epochs: 1n
 criterion: [bce, 1]
 
 # Validation&Testing

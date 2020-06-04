@@ -1,19 +1,18 @@
 batch_size: 32
 workers: 16
-augmentation: hard
+augmentation: medium
 debug: False
 opt_level: O1
 resume: ""
 
 # Model
-segm_arch: unet
+segm_arch: linknet
 backbone: resnet34
 
 model_params: {
     encoder_weights: 'imagenet',
     norm_layer: 'inplaceabn',
-    norm_act: 'leaky_relu',
-    decoder_channels: [256, 128, 64, 32, 32]}
+    norm_act: 'leaky_relu'}
 
 ws: False
 
