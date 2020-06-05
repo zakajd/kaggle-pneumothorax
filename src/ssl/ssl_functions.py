@@ -32,6 +32,7 @@ def ssl_pseudolabeling(model, ssl_loader, ssl_loader_iterator, imgs, masks, devi
 
 def ssl_consistency(model, ssl_loader, ssl_loader_iterator, imgs, masks, device, augm_classes, criterion_ssl):
     # Return semi-supervised loss
+    # Calculates consistency loss using a random reversable transform
     img_u = sample_from_loader(ssl_loader, ssl_loader_iterator)
     img_u = img_u.to(device)
     aug_function = np.random.choice(augm_classes)
@@ -42,6 +43,8 @@ def ssl_consistency(model, ssl_loader, ssl_loader_iterator, imgs, masks, device,
     return loss
 
 def ssl_cowmix(model, ssl_loader, ssl_loader_iterator, imgs, masks, device, augm_classes, criterion_ssl):
+    # Return semi-supervised loss
+    # Calculate cow-mix loss from https://arxiv.org/abs/1906.01916
     p = 0.5
     img_u1 = sample_from_loader(ssl_loader, ssl_loader_iterator)
     img_u1 = img_u1.to(device)
