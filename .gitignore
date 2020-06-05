@@ -108,3 +108,6 @@ venv.bak/
 .vscode/
 /logs
 ./idea
+
+# Jup.
+./src/ssl/*.ipynb

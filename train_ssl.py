@@ -54,7 +54,7 @@ def epoch_iterator(loader, ssl_loader, ssl_function, train_mode, model, optimize
         p_ssl = ((epoch_max - epoch) / epoch_max) / 2 + 0.5
         if train_mode == 'train' and np.random.random() > p_ssl and ssl_function is not None:
             loss_ssl = ssl_function(model, ssl_loader, ssl_loader_iterator, imgs, masks, device, augm_classes, criterion_ssl)
-            loss = loss + loss_ssl
+            loss = loss + 2*loss_ssl
 
         if train_mode == 'train':
             optimizer.zero_grad()

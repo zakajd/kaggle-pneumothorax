@@ -13,7 +13,7 @@ import cv2
 import yaml
 import apex
 import torch
-import shapely
+#import shapely
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -119,8 +119,9 @@ def submit_from_loader(model, loader, file_names,  threshold_prob, threshold_are
 
 def main(hparams):
     assert os.path.exists(hparams.config_path)
-    # Add model parameters 
-    with open(os.path.join(hparams.config_path, "config.yaml"), "r") as file:
+    # Add model parameter
+    config_name = [file for file in os.listdir(hparams.config_path) if '.yaml' in file][0]
+    with open(os.path.join(hparams.config_path, config_name), "r") as file:
         model_configs = yaml.load(file)
     model_configs.update(vars(hparams))
     hparams = model_configs = argparse.Namespace(**model_configs)
@@ -131,11 +132,10 @@ def main(hparams):
     # Convert all Conv2D -> WS_Conv2d if needed
     if hparams.ws:
         model = pt.modules.weight_standartization.conv_to_ws_conv(model).cuda()
+    chpt_name = [file for file in os.listdir(hparams.config_path) if '.chpn' in file or '.pt' in file][0]
 
-    checkpoint = torch.load(os.path.join(hparams.config_path , "model.chpn"))
-
-    model.load_state_dict(checkpoint["state_dict"])
-    model = model.cuda().eval()
+    model.load_state_dict(torch.load(os.path.join(hparams.config_path , chpt_name)))
+    model = model.to(hparams.device).eval()
 
     # if FLAGS.tta:
     #     model = pt.tta_wrapper.TTA(
@@ -143,12 +143,13 @@ def main(hparams):
     #         merge="gmean", activation="sigmoid"
     #     )
 
-    model = apex.amp.initialize(model, verbosity=0)
+    #model = apex.amp.initialize(model, verbosity=0)
     print("Model loaded succesfully")
 
     if hparams.predict_val:
         val_loader, val_files = get_val_dataloader(
-            root=hparams.root,
+            root=hparams.train_val_folder,
+            train_val_csv_path=hparams.train_val_csv_path,
             fold=hparams.fold,
             size=hparams.val_size,
             batch_size=hparams.batch_size,
@@ -167,7 +168,8 @@ def main(hparams):
 
     if hparams.predict_hold_out_test:
         val_loader, val_files = get_val_dataloader(
-            root=hparams.root,
+            root=hparams.train_val_folder,
+            train_val_csv_path = hparams.train_val_csv_path,
             fold="test",
             size=hparams.val_size,
             batch_size=hparams.batch_size,

@@ -117,7 +117,8 @@ def test(hparams):
 
     if hparams.test_val:
         dataset = PneumothoraxDataset(
-            root=hparams.root,
+            root=hparams.train_val_folder,
+            train_val_csv_path=hparams.train_val_csv_path,
             fold=hparams.fold,
             train=False,
         )
@@ -127,7 +128,8 @@ def test(hparams):
         pred_masks_dir = os.path.join(hparams.masks_path, "val_prediction", hparams.name)
     elif hparams.test_hold_out:
         dataset = PneumothoraxDataset(
-            root=hparams.root,
+            root=hparams.train_val_folder,
+            train_val_csv_path=hparams.train_val_csv_path,
             fold='test',
             train=False,
         )

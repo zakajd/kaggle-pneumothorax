@@ -147,6 +147,29 @@ def get_ssl_dataloaders(train_val_folder, train_val_csv_path, train_size, val_si
 
     return train_loader, val_loader, ssl_loader
 
+def get_val_dataloader(
+    root="data/interim",
+    train_val_csv_path = "data/interim/train_val.csv",
+    fold=0,
+    batch_size=8,
+    size=768,
+    workers=6,
+    ):
+    aug = get_aug("test", size=size)
+
+    val_dataset = PneumothoraxDataset(
+        root=root,
+        train_val_csv_path = train_val_csv_path,
+        fold=fold,
+        train=False,
+        transform=aug,
+    )
+
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=workers)
+    val_loader = ToCudaLoader(val_loader)
+
+    print(f"\nUsing fold: {fold}. Validation size: {len(val_dataset)}")
+    return val_loader, val_dataset.images
 
 class PneumothoraxDataset(torch.utils.data.Dataset):
     "Dataset for SIIM-ACR Pneumothorax Segmentation challenge"
@@ -170,7 +193,7 @@ class PneumothoraxDataset(torch.utils.data.Dataset):
         df = pd.read_csv(train_val_csv_path)
         df = df.astype({'Index': str, 'Class': int, 'Fold': str, 'Train': int})
         df = df.astype({'Train': bool})
-        df = df[(df["Train"] == train) & (df["Fold"] == fold)]
+        df = df[(df["Train"] == train) & (df["Fold"] == str(fold))]
         self.images = list(root + "/images/" + df["Index"] + ".png")
         self.masks = list(root + "/masks/" + df["Index"] + ".png")
 

@@ -11,7 +11,7 @@
 #SBATCH -o /import/AI-Dx_working/User/Ilyas/slurm_logs/%j.%N.out# STDOUT
 #SBATCH -e /import/AI-Dx_working/User/Ilyas/slurm_logs/%j.%N.err# STDERR
 #SBATCH --time=24:00:00
-#SBATCH --begin=now+8hours
+#SBATCH --begin=now
 
 cd /import/AI-Dx_working/User/Ilyas/DL_SSL/
-python /import/AI-Dx_working/User/Ilyas/DL_SSL/train_ssl.py -c $1
+python /import/AI-Dx_working/User/Ilyas/DL_SSL/inference.py "$@"
