@@ -31,7 +31,6 @@ def get_parser():
     add_arg("--model_params", type=eval, default={}, help="Additional model params as kwargs")
     add_arg("--ws", default=False, action='store_true', help="Weight standartization")
 
-
     # Training
     add_arg("--optim", type=str, default="adamw", help="Optimizer to use (default: adamw)")
     add_arg("--weight_decay", "--wd", default=1e-4, type=float, help="Weight decay (default: 1e-4)")

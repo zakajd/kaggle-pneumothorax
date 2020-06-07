@@ -97,6 +97,7 @@ def main(hparams):
         skf = StratifiedKFold(n_splits=hparams.num_folds)
         final_splits = []
 
+
         for fold, (train_index, val_index) in enumerate(skf.split(file_names, classes)):
             files_train, files_val = file_names[train_index], file_names[val_index]
             classes_train, classes_val = classes[train_index], classes[val_index]

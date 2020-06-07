@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches as patches
 
+
 def show_dicom_info():
     print("Filename.........:", file_path)
     dicom_data = pydicom.dcmread(file_path)

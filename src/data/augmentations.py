@@ -50,6 +50,7 @@ def get_aug(aug_type="val", size=512):
         NORM_TO_TENSOR,
     ])
     
+
     types = {
         "val" : VAL_AUG,
         "test" : TEST_AUG,

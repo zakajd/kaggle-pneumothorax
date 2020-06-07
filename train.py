@@ -15,6 +15,7 @@ from src.data.datasets import get_dataloaders
 from src.utils import MODEL_FROM_NAME, criterion_from_list
 from src.callbacks import PredictViewer
 
+
 def main():
     # Setup logger
     config = {

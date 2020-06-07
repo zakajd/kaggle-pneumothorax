@@ -3,20 +3,6 @@ import pytorch_tools as pt
 from torchvision.utils import make_grid
 
 
-# class ThrJaccardScore(pt.metrics.JaccardScore):
-#     """Calculate Jaccard on Thresholded by `thr` prediction. This function applyis sigmoid to prediction first"""
-
-#     def __init__(self, *args, thr=0.5, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.from_logits = False
-#         self.name = "ThrJaccard@" + str(thr)
-#         self.thr = thr
-
-#     def forward(self, y_pred, y_true):
-#         y_pred = (y_pred.sigmoid() > self.thr).float()
-#         return super().forward(y_pred, y_true)
-
-
 class PredictViewer(pt.fit_wrapper.callbacks.TensorBoard):
     """Saves first batch and visualizes model predictions on it for every epoch"""
 

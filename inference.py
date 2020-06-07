@@ -52,6 +52,7 @@ def predict_from_loader(model, loader, file_names, output_path):
             cv2.imwrite(f"{output_path}/{file_names[idx]}.png", mask)
             idx += 1
 
+
 @torch.no_grad()          
 def submit_from_loader(model, loader, file_names, output_path, save=True):
     """Predict, threshold, center crop (to 900 x 900 size), save
